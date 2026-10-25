@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
+const backendUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
   devIndicators: false,
+  productionBrowserSourceMaps: false,
   images: {
     localPatterns: [
       {
@@ -13,6 +16,10 @@ const nextConfig: NextConfig = {
       },
     ],
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
       {
         protocol: "https",
         hostname: "images.unsplash.com",
@@ -30,6 +37,52 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+          },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+        ],
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      // Forward /api/* calls (except /api/revalidate) to the Render standalone backend
+      {
+        source: "/api/revalidate",
+        destination: "/api/revalidate",
+      },
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
+      },
+      {
+        source: "/uploads/:path*",
+        destination: `${backendUrl}/uploads/:path*`,
+      },
+    ];
   },
 };
 
