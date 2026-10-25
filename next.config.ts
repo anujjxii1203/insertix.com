@@ -25,9 +25,21 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
       },
       {
-        protocol: "https",
-        hostname: "**",
+        protocol: "http",
+        hostname: "localhost",
       },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+      },
+      ...(backendUrl.startsWith("https://")
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: new URL(backendUrl).hostname,
+            },
+          ]
+        : []),
     ],
   },
   turbopack: {

@@ -7,6 +7,45 @@ import AutoCarousel from "@/components/ui/AutoCarousel";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
 import { IProject } from "@/lib/models";
 
+function ImageWithFallback({
+  src,
+  alt,
+  fallbackTitle,
+  fill,
+  sizes,
+  className,
+}: {
+  src: string;
+  alt: string;
+  fallbackTitle: string;
+  fill?: boolean;
+  sizes?: string;
+  className?: string;
+}) {
+  const [error, setError] = useState(false);
+
+  if (error || !src) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#FAF9F7] text-[#6B6B6B] p-4 text-center select-none">
+        <Folder className="w-8 h-8 text-[#D40000]/60 mb-2" />
+        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#0A0A0A]">
+          {fallbackTitle}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill={fill}
+      sizes={sizes}
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+}
 
 function getLinkType(url?: string): "video" | "instagram" | "drive" | "other" {
   if (!url) return "other";
@@ -28,23 +67,6 @@ function getLinkType(url?: string): "video" | "instagram" | "drive" | "other" {
   }
 }
 
-function isVideoLink(url?: string): boolean {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    const host = parsed.hostname.toLowerCase();
-    const pathname = parsed.pathname.toLowerCase();
-    if (host.includes("youtube.com") || host.includes("youtu.be") || host.includes("vimeo.com")) {
-      return true;
-    }
-    if (host.includes("instagram.com") && (pathname.includes("/reel/") || pathname.includes("/reels/"))) {
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 export default function RecentWorkSection() {
   const [projects, setProjects] = useState<IProject[]>([]);
@@ -152,7 +174,6 @@ export default function RecentWorkSection() {
           {projects.map((project) => {
             const hasLink = Boolean(project.link && project.link.trim() !== "");
             const linkType = getLinkType(project.link);
-            const showPlayOverlay = hasLink && isVideoLink(project.link);
 
             const cardContent = (
               <div
@@ -162,9 +183,10 @@ export default function RecentWorkSection() {
               >
                 {/* Media Container with Fixed 4:3 Aspect Ratio */}
                 <div className="relative z-[1] w-full aspect-[4/3] overflow-hidden bg-[#F5F4F2]">
-                  <Image
+                  <ImageWithFallback
                     src={project.coverImage}
                     alt={project.title}
+                    fallbackTitle={project.title}
                     fill
                     sizes="(max-width: 640px) 85vw, 520px"
                     className={`object-cover transition-transform duration-500 ease-out ${
@@ -194,15 +216,6 @@ export default function RecentWorkSection() {
                       </span>
                     )}
                   </div>
-
-                  {/* Centered Play overlay for video links */}
-                  {showPlayOverlay && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-xs text-white flex items-center justify-center border border-white/20 shadow-lg group-hover/card:scale-110 group-hover/card:bg-[#D40000] transition-all duration-300">
-                        <Play className="w-5 h-5 fill-white translate-x-0.5" />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Circular Button matching link type (only if project has link) */}
                   {hasLink && (

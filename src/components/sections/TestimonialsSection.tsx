@@ -6,6 +6,38 @@ import { Star, Quote } from "lucide-react";
 import AutoCarousel from "@/components/ui/AutoCarousel";
 import { ITestimonial } from "@/lib/models";
 
+function TestimonialAvatar({ testimonial }: { testimonial: ITestimonial }) {
+  const [error, setError] = useState(false);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
+  if (error || !testimonial.avatar) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-[#EFECE6] text-[#D40000] font-mono font-bold text-xs">
+        {getInitials(testimonial.clientName)}
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={testimonial.avatar}
+      alt={testimonial.clientName}
+      fill
+      sizes="48px"
+      className="object-cover"
+      onError={() => setError(true)}
+    />
+  );
+}
 export default function TestimonialsSection() {
   const [testimonials, setTestimonials] = useState<ITestimonial[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,13 +141,7 @@ export default function TestimonialsSection() {
               {/* Author Row pinned to bottom with divider directly above */}
               <div className="flex items-center gap-3.5 border-t border-[rgba(10,10,10,0.08)] pt-4 mt-auto relative z-10">
                 <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[rgba(10,10,10,0.1)] bg-[#FAF9F7] flex-shrink-0">
-                  <Image
-                    src={t.avatar}
-                    alt={t.clientName}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                  />
+                  <TestimonialAvatar testimonial={t} />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-[#0A0A0A] group-hover/card:text-[#D40000] transition-colors duration-200">

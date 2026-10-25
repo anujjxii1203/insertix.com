@@ -6,6 +6,42 @@ import TiltCard from "@/components/ui/TiltCard";
 import { LinkedInIcon, InstagramIcon, TwitterXIcon, DribbbleIcon } from "@/components/ui/SocialIcons";
 import { ITeamMember } from "@/lib/models";
 
+function TeamAvatar({ member }: { member: ITeamMember }) {
+  const [error, setError] = useState(false);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
+  if (error || !member.avatar) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#FAF9F7] text-[#6B6B6B]">
+        <div className="w-20 h-20 rounded-full bg-[#EFECE6] border border-[rgba(10,10,10,0.1)] flex items-center justify-center">
+          <span className="text-xl font-mono font-bold text-[#D40000]">
+            {getInitials(member.name)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={member.avatar}
+      alt={member.name}
+      fill
+      className="object-cover object-top filter grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500 ease-out"
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+      onError={() => setError(true)}
+    />
+  );
+}
 export default function TeamSection() {
   const [team, setTeam] = useState<ITeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,13 +123,7 @@ export default function TeamSection() {
                 <div className="brand-card card-glow overflow-hidden h-full flex flex-col justify-between group bg-white border border-[rgba(10,10,10,0.08)] rounded-[24px] relative isolate">
                   {/* Photo Container */}
                   <div className="relative z-[1] w-full h-72 sm:h-80 overflow-hidden bg-[#FAF9F7]">
-                    <Image
-                      src={member.avatar}
-                      alt={member.name}
-                      fill
-                      className="object-cover object-top filter grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500 ease-out"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    />
+                    <TeamAvatar member={member} />
 
                     {/* Social links hover overlay */}
                     <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
