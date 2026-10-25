@@ -1,26 +1,216 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #FFFFFF;
+    --bg-alt: #F5F4F2;
+    --surface: #FFFFFF;
+    --surface-2: #FAF9F7;
+    --text: #0A0A0A;
+    --muted: #6B6B6B;
+    --border: rgba(10, 10, 10, 0.08);
+    --accent: #D40000;
+    --accent-dark: #A80000;
+    --accent-soft: #FDECEC;
+    --dark: #0A0A0A;
+
+    /* Red Gradient Tokens */
+    --red-light: #FF5A4D;
+    --red: #D40000;
+    --red-deep: #7A0000;
+    --blush: #FFD6D0;
+    --grad: linear-gradient(90deg, #FF5A4D 0%, #D40000 50%, #7A0000 100%);
+    --grad-diag: linear-gradient(135deg, #FF5A4D 0%, #D40000 55%, #7A0000 100%);
+    --grad-soft: linear-gradient(135deg, #FFD6D0 0%, #FDECEC 60%, #FFFFFF 100%);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 85px;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    overflow-x: clip;
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background-color: var(--accent-soft);
+    color: var(--accent-dark);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Gradient text utility */
+.text-gradient-red {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+}
+
+/* Gradient primary buttons with high contrast and smooth hover */
+.btn-grad-red {
+  background: var(--grad-diag);
+  background-size: 150% 150%;
+  background-position: 0% 50%;
+  color: #FFFFFF !important;
+  transition: background-position 0.25s ease, background-color 0.25s ease, transform 0.2s ease;
+}
+
+.btn-grad-red:hover {
+  background-position: 100% 50%;
+  background-color: var(--red-deep);
+}
+
+/* Card utilities: animate only transform and opacity with quick 180ms responsive transition */
+.card-glow, .brand-card, .nexo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+}
+
+.card-glow:hover, .brand-card:hover, .nexo-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(212, 0, 0, 0.30);
+}
+
+/* Soft RADIAL gradient glow on hover: seamlessly fades out with zero hard edges */
+.card-glow::before, .brand-card::before, .nexo-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 100% 0%, rgba(212, 0, 0, 0.10) 0%, rgba(255, 90, 77, 0.06) 30%, transparent 60%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-glow:hover::before, .brand-card:hover::before, .nexo-card:hover::before {
+  opacity: 1;
+}
+
+/* Section label pills: white with 1px border and red gradient dot */
+.brand-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.875rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.brand-pill::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--grad);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #FFFFFF;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5D5D8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Carousel edge fade masks */
+.carousel-mask {
+  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+}
+
+/* Infinite marquee: transform only with will-change */
+@keyframes marqueeLeft {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.animate-marquee-left {
+  display: flex;
+  width: max-content;
+  animation: marqueeLeft var(--marquee-duration, 45s) linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-left:hover {
+  animation-play-state: paused;
+}
+
+/* Below-the-fold content visibility for faster rendering and TBT reduction */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 650px;
+}
+
+@keyframes pulseWhatsApp {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 18px 0 rgba(37, 211, 102, 0.4);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 6px 26px 2px rgba(37, 211, 102, 0.6);
+  }
+}
+
+.whatsapp-pulse {
+  animation: pulseWhatsApp 3s infinite ease-in-out;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-left,
+  .whatsapp-pulse {
+    animation: none !important;
+  }
+}
+
+/* Scoped Admin Theme */
+.admin-theme,
+.admin-theme * {
+  cursor: auto !important;
+}
+
+.admin-theme a,
+.admin-theme button,
+.admin-theme select,
+.admin-theme label {
+  cursor: pointer !important;
+}
+
+.admin-theme input,
+.admin-theme textarea {
+  cursor: text !important;
 }
