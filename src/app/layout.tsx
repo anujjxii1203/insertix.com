@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import CustomCursor from "@/components/ui/CustomCursor";
 import Preloader from "@/components/ui/Preloader";
 import SmoothScroll from "@/components/ui/SmoothScroll";
 
@@ -163,9 +162,6 @@ export default function RootLayout({
 
         {/* Page Preloader */}
         <Preloader />
-
-        {/* Optimized Cursor (disabled on touch & prefers-reduced-motion) */}
-        <CustomCursor />
 
         {/* Smooth Scroll Container */}
         <SmoothScroll>{children}</SmoothScroll>
