@@ -6,8 +6,11 @@ import TiltCard from "@/components/ui/TiltCard";
 import { LinkedInIcon, InstagramIcon, TwitterXIcon, DribbbleIcon } from "@/components/ui/SocialIcons";
 import { ITeamMember } from "@/lib/models";
 
+import { normalizeImageUrl } from "@/lib/api";
+
 function TeamAvatar({ member }: { member: ITeamMember }) {
   const [error, setError] = useState(false);
+  const resolvedSrc = normalizeImageUrl(member.avatar);
 
   const getInitials = (name: string) => {
     return name
@@ -19,7 +22,7 @@ function TeamAvatar({ member }: { member: ITeamMember }) {
       .toUpperCase();
   };
 
-  if (error || !member.avatar) {
+  if (error || !resolvedSrc) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-[#FAF9F7] text-[#6B6B6B]">
         <div className="w-20 h-20 rounded-full bg-[#EFECE6] border border-[rgba(10,10,10,0.1)] flex items-center justify-center">
@@ -33,7 +36,7 @@ function TeamAvatar({ member }: { member: ITeamMember }) {
 
   return (
     <Image
-      src={member.avatar}
+      src={resolvedSrc}
       alt={member.name}
       fill
       className="object-cover object-top filter grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500 ease-out"

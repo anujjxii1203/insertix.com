@@ -7,7 +7,7 @@ A high-performance modern web platform for **Insertix Media**, featuring a cinem
 ## 🏗️ Architecture Overview
 
 - **Frontend (`/`)**: Next.js 16 with React 19, Tailwind CSS v4, ISR cache tags, and dynamic proxy routing. Designed for deployment on **Vercel**.
-- **Backend (`/backend`)**: Node.js & Express.js REST API with MongoDB Atlas integration, Helmet, Rate Limiting, JWT Cookie/Bearer Auth, SSE Live Updates, and Cloudinary image optimization. Designed for deployment on **Render**.
+- **Backend (`/backend`)**: Node.js & Express.js REST API with MongoDB Atlas integration, Helmet, Rate Limiting, JWT Cookie/Bearer Auth, SSE Live Updates, and ImageKit image optimization. Designed for deployment on **Render**.
 
 ---
 
@@ -31,9 +31,9 @@ A high-performance modern web platform for **Insertix Media**, featuring a cinem
 | `SMTP_PORT` | SMTP port | `587` |
 | `SMTP_USER` | SMTP username | Your email |
 | `SMTP_PASS` | SMTP app password | Your app-specific password |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary Cloud name | For media uploads |
-| `CLOUDINARY_API_KEY` | Cloudinary API Key | For media uploads |
-| `CLOUDINARY_API_SECRET` | Cloudinary API Secret | For media uploads |
+| `IMAGEKIT_PUBLIC_KEY` | ImageKit Public Key | For media storage & CDN delivery |
+| `IMAGEKIT_PRIVATE_KEY` | ImageKit Private Key | For server-side uploads |
+| `IMAGEKIT_URL_ENDPOINT` | ImageKit URL Endpoint | E.g. `https://ik.imagekit.io/<your_id>` |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Contact phone number | E.g. `919717150055` |
 
 ---

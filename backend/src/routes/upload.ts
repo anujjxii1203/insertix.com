@@ -5,16 +5,48 @@ import path from "path";
 import fs from "fs";
 import { requireAuth } from "../middleware/auth";
 import { uploadLimiter } from "../middleware/rateLimit";
-import { cloudinary } from "../config/cloudinary";
+import { imagekit } from "../config/imagekit";
 
 const router = Router();
+
+// Magic bytes validation for jpeg, png, webp, avif
+function validateMagicBytes(buffer: Buffer): boolean {
+  if (buffer.length < 12) return false;
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return true;
+  }
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47
+  ) {
+    return true;
+  }
+  // WEBP: RIFF....WEBP
+  if (
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return true;
+  }
+  // AVIF: ....ftypavif
+  if (buffer.toString("ascii", 4, 12).includes("ftyp")) {
+    return true;
+  }
+
+  return false;
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 8 * 1024 * 1024, // 8MB
   },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: any, file: any, cb: any) => {
     const allowed = /jpeg|jpg|png|webp|avif/i.test(path.extname(file.originalname));
     const mime = /image\/(jpeg|png|webp|avif)/i.test(file.mimetype);
     if (allowed && mime) {
@@ -38,41 +70,40 @@ router.post(
         return res.status(400).json({ error: "No file provided" });
       }
 
-      // Resize and compress with sharp to WebP
+      // Magic bytes verification
+      if (!validateMagicBytes(file.buffer)) {
+        return res.status(400).json({ error: "Invalid image file header" });
+      }
+
+      // Resize and compress with sharp (WebP, max 1600px, quality 78)
       const processedBuffer = await sharp(file.buffer)
         .rotate()
         .resize({ width: 1600, withoutEnlargement: true })
-        .webp({ quality: 80, effort: 6 })
+        .webp({ quality: 78, effort: 6 })
         .toBuffer();
 
-      // If Cloudinary credentials are set in environment, upload to Cloudinary
-      if (
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-      ) {
-        return new Promise<void>((resolve, reject) => {
-          const uploadStream = cloudinary.uploader.upload_stream(
-            {
-              folder: "insertix",
-              resource_type: "image",
-              format: "webp",
-            },
-            (error, result) => {
-              if (error || !result) {
-                console.error("Cloudinary upload failed:", error);
-                res.status(500).json({ error: "Cloudinary upload failed" });
-                return resolve();
-              }
-              res.json({
-                success: true,
-                url: result.secure_url,
-              });
-              resolve();
-            }
-          );
-          uploadStream.end(processedBuffer);
-        });
+      const safeName = `${Date.now()}-${file.originalname
+        .replace(/[^a-zA-Z0-9.-]/g, "_")
+        .replace(/\.[^/.]+$/, "")}.webp`;
+
+      // Upload to ImageKit if configured
+      if (imagekit) {
+        try {
+          const uploadRes = await imagekit.upload({
+            file: processedBuffer,
+            fileName: safeName,
+            folder: "/insertix",
+            useUniqueFileName: true,
+          });
+
+          return res.json({
+            success: true,
+            url: uploadRes.url,
+          });
+        } catch (ikError: any) {
+          console.error("ImageKit upload failed:", ikError);
+          return res.status(500).json({ error: "ImageKit upload failed" });
+        }
       }
 
       // Local fallback for local development only
@@ -80,7 +111,6 @@ router.post(
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
-      const safeName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
       const filePath = path.join(uploadsDir, safeName);
       fs.writeFileSync(filePath, processedBuffer);
 

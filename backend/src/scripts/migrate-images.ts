@@ -1,11 +1,13 @@
-import { v2 as cloudinary } from "cloudinary";
+import ImageKit from "imagekit";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
+import sharp from "sharp";
 
 // Load backend env or root env
 dotenv.config();
 dotenv.config({ path: path.join(__dirname, "../../../.env.local") });
+dotenv.config({ path: path.join(__dirname, "../../../atlas-credentials.env") });
 
 import {
   getProjects,
@@ -23,23 +25,13 @@ interface MigrationRow {
   titleOrName: string;
   field: string;
   oldPath: string;
+  fileFound: "YES" | "NO";
   newUrl?: string;
-  status: "UPLOADED" | "ALREADY_REMOTE" | "MISSING_LOCAL_FILE" | "FAILED" | "SKIPPED_NO_CREDS";
+  status: "UPLOADED" | "ALREADY_REMOTE" | "MISSING_LOCAL_FILE" | "DRY_RUN_READY" | "FAILED" | "SKIPPED_NO_CREDS";
   error?: string;
 }
 
-async function uploadFileToCloudinary(localPath: string): Promise<string> {
-  const result = await cloudinary.uploader.upload(localPath, {
-    folder: "insertix",
-    resource_type: "image",
-    format: "webp",
-    transformation: [{ quality: "auto:good", fetch_format: "webp" }],
-  });
-  return result.secure_url;
-}
-
 function resolveLocalFilePath(imagePath: string): string | null {
-  // Candidate locations where uploads/assets might live
   const normalized = imagePath.replace(/^\/+/, ""); // e.g. uploads/xyz.webp or assets/xyz.webp
   const candidates = [
     path.join(process.cwd(), "..", "public", normalized),
@@ -58,26 +50,32 @@ function resolveLocalFilePath(imagePath: string): string | null {
 
 async function run() {
   console.log("=================================================");
-  console.log("📦 Cloudinary Image Migration Script");
+  console.log("📦 ImageKit Image Migration Script");
   console.log("=================================================\n");
 
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  const isRealRun = process.argv.includes("--execute");
 
-  const hasCloudinary = Boolean(cloudName && apiKey && apiSecret);
+  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY;
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
 
-  if (!hasCloudinary) {
-    console.warn("⚠️  WARNING: Cloudinary environment variables (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET) are not set.");
-    console.warn("Running in DRY-RUN / INVENTORY mode only. Local files will be identified without uploading.\n");
+  const hasImageKit = Boolean(publicKey && privateKey && urlEndpoint);
+
+  let imagekit: ImageKit | null = null;
+
+  if (!hasImageKit) {
+    console.warn("⚠️  WARNING: ImageKit environment variables (IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT) are not set.");
+    console.warn("Running in DRY-RUN / INVENTORY mode only. Local files will be checked without uploading.\n");
   } else {
-    cloudinary.config({
-      cloud_name: cloudName,
-      api_key: apiKey,
-      api_secret: apiSecret,
-      secure: true,
+    imagekit = new ImageKit({
+      publicKey: publicKey!,
+      privateKey: privateKey!,
+      urlEndpoint: urlEndpoint!,
     });
-    console.log(`✅ Configured Cloudinary for cloud: ${cloudName}\n`);
+    console.log(`✅ Configured ImageKit Endpoint: ${urlEndpoint}\n`);
+    if (!isRealRun) {
+      console.log("ℹ️  Running in DRY RUN mode. Pass '--execute' to perform real uploads and DB updates.\n");
+    }
   }
 
   await connectDB();
@@ -97,6 +95,7 @@ async function run() {
         titleOrName: proj.title,
         field: "coverImage",
         oldPath: rawPath,
+        fileFound: "YES",
         newUrl: rawPath,
         status: "ALREADY_REMOTE",
       });
@@ -111,35 +110,51 @@ async function run() {
         titleOrName: proj.title,
         field: "coverImage",
         oldPath: rawPath,
+        fileFound: "NO",
         status: "MISSING_LOCAL_FILE",
         error: "File not found in local public/ or uploads/ directory",
       });
       continue;
     }
 
-    if (!hasCloudinary) {
+    if (!hasImageKit || !isRealRun) {
       report.push({
         collection: "projects",
         id: proj.id,
         titleOrName: proj.title,
         field: "coverImage",
         oldPath: rawPath,
-        status: "SKIPPED_NO_CREDS",
+        fileFound: "YES",
+        status: hasImageKit ? "DRY_RUN_READY" : "SKIPPED_NO_CREDS",
       });
       continue;
     }
 
     try {
       console.log(`Uploading project '${proj.title}' image: ${localFile}...`);
-      const newUrl = await uploadFileToCloudinary(localFile);
-      await updateProject(proj.id, { coverImage: newUrl });
+      const fileBuffer = fs.readFileSync(localFile);
+      const processedBuffer = await sharp(fileBuffer)
+        .rotate()
+        .resize({ width: 1600, withoutEnlargement: true })
+        .webp({ quality: 78, effort: 6 })
+        .toBuffer();
+
+      const uploadRes = await imagekit!.upload({
+        file: processedBuffer,
+        fileName: path.basename(localFile),
+        folder: "/insertix",
+        useUniqueFileName: true,
+      });
+
+      await updateProject(proj.id, { coverImage: uploadRes.url });
       report.push({
         collection: "projects",
         id: proj.id,
         titleOrName: proj.title,
         field: "coverImage",
         oldPath: rawPath,
-        newUrl,
+        fileFound: "YES",
+        newUrl: uploadRes.url,
         status: "UPLOADED",
       });
     } catch (err: any) {
@@ -149,6 +164,7 @@ async function run() {
         titleOrName: proj.title,
         field: "coverImage",
         oldPath: rawPath,
+        fileFound: "YES",
         status: "FAILED",
         error: err.message,
       });
@@ -168,6 +184,7 @@ async function run() {
         titleOrName: member.name,
         field: "avatar",
         oldPath: rawPath,
+        fileFound: "YES",
         newUrl: rawPath,
         status: "ALREADY_REMOTE",
       });
@@ -182,35 +199,51 @@ async function run() {
         titleOrName: member.name,
         field: "avatar",
         oldPath: rawPath,
+        fileFound: "NO",
         status: "MISSING_LOCAL_FILE",
         error: "File not found in local public/ or uploads/ directory",
       });
       continue;
     }
 
-    if (!hasCloudinary) {
+    if (!hasImageKit || !isRealRun) {
       report.push({
         collection: "team",
         id: member.id,
         titleOrName: member.name,
         field: "avatar",
         oldPath: rawPath,
-        status: "SKIPPED_NO_CREDS",
+        fileFound: "YES",
+        status: hasImageKit ? "DRY_RUN_READY" : "SKIPPED_NO_CREDS",
       });
       continue;
     }
 
     try {
       console.log(`Uploading team member '${member.name}' avatar: ${localFile}...`);
-      const newUrl = await uploadFileToCloudinary(localFile);
-      await updateTeamMember(member.id, { avatar: newUrl });
+      const fileBuffer = fs.readFileSync(localFile);
+      const processedBuffer = await sharp(fileBuffer)
+        .rotate()
+        .resize({ width: 1600, withoutEnlargement: true })
+        .webp({ quality: 78, effort: 6 })
+        .toBuffer();
+
+      const uploadRes = await imagekit!.upload({
+        file: processedBuffer,
+        fileName: path.basename(localFile),
+        folder: "/insertix",
+        useUniqueFileName: true,
+      });
+
+      await updateTeamMember(member.id, { avatar: uploadRes.url });
       report.push({
         collection: "team",
         id: member.id,
         titleOrName: member.name,
         field: "avatar",
         oldPath: rawPath,
-        newUrl,
+        fileFound: "YES",
+        newUrl: uploadRes.url,
         status: "UPLOADED",
       });
     } catch (err: any) {
@@ -220,6 +253,7 @@ async function run() {
         titleOrName: member.name,
         field: "avatar",
         oldPath: rawPath,
+        fileFound: "YES",
         status: "FAILED",
         error: err.message,
       });
@@ -239,6 +273,7 @@ async function run() {
         titleOrName: t.clientName,
         field: "avatar",
         oldPath: rawPath,
+        fileFound: "YES",
         newUrl: rawPath,
         status: "ALREADY_REMOTE",
       });
@@ -253,35 +288,51 @@ async function run() {
         titleOrName: t.clientName,
         field: "avatar",
         oldPath: rawPath,
+        fileFound: "NO",
         status: "MISSING_LOCAL_FILE",
         error: "File not found in local public/ or uploads/ directory",
       });
       continue;
     }
 
-    if (!hasCloudinary) {
+    if (!hasImageKit || !isRealRun) {
       report.push({
         collection: "testimonials",
         id: t.id,
         titleOrName: t.clientName,
         field: "avatar",
         oldPath: rawPath,
-        status: "SKIPPED_NO_CREDS",
+        fileFound: "YES",
+        status: hasImageKit ? "DRY_RUN_READY" : "SKIPPED_NO_CREDS",
       });
       continue;
     }
 
     try {
       console.log(`Uploading testimonial '${t.clientName}' avatar: ${localFile}...`);
-      const newUrl = await uploadFileToCloudinary(localFile);
-      await updateTestimonial(t.id, { avatar: newUrl });
+      const fileBuffer = fs.readFileSync(localFile);
+      const processedBuffer = await sharp(fileBuffer)
+        .rotate()
+        .resize({ width: 1600, withoutEnlargement: true })
+        .webp({ quality: 78, effort: 6 })
+        .toBuffer();
+
+      const uploadRes = await imagekit!.upload({
+        file: processedBuffer,
+        fileName: path.basename(localFile),
+        folder: "/insertix",
+        useUniqueFileName: true,
+      });
+
+      await updateTestimonial(t.id, { avatar: uploadRes.url });
       report.push({
         collection: "testimonials",
         id: t.id,
         titleOrName: t.clientName,
         field: "avatar",
         oldPath: rawPath,
-        newUrl,
+        fileFound: "YES",
+        newUrl: uploadRes.url,
         status: "UPLOADED",
       });
     } catch (err: any) {
@@ -291,6 +342,7 @@ async function run() {
         titleOrName: t.clientName,
         field: "avatar",
         oldPath: rawPath,
+        fileFound: "YES",
         status: "FAILED",
         error: err.message,
       });
@@ -298,13 +350,14 @@ async function run() {
   }
 
   console.log("\n=================================================");
-  console.log("📊 MIGRATION SUMMARY TABLE");
+  console.log("📊 IMAGEKIT MIGRATION SUMMARY TABLE");
   console.log("=================================================");
   console.table(
     report.map((r) => ({
       Collection: r.collection,
-      Name: r.titleOrName.substring(0, 24),
-      "Old Path": r.oldPath.substring(0, 30),
+      Name: r.titleOrName.substring(0, 22),
+      "Old Path": r.oldPath.substring(0, 28),
+      "File Found?": r.fileFound,
       Status: r.status,
       "New URL / Error": (r.newUrl || r.error || "-").substring(0, 40),
     }))
@@ -312,7 +365,7 @@ async function run() {
 
   const missing = report.filter((r) => r.status === "MISSING_LOCAL_FILE");
   if (missing.length > 0) {
-    console.warn(`\n⚠️  The following ${missing.length} files were missing on disk and could not be uploaded:`);
+    console.warn(`\n⚠️  The following ${missing.length} files were missing on disk:`);
     missing.forEach((m) => console.warn(` - [${m.collection}] ${m.titleOrName}: ${m.oldPath}`));
   }
 

@@ -27,6 +27,8 @@ dist/
 .env.production
 .env.development
 .env.test
+atlas-credentials.env
+*.env
 *.pem
 *.key
 

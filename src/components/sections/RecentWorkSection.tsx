@@ -7,10 +7,13 @@ import AutoCarousel from "@/components/ui/AutoCarousel";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
 import { IProject } from "@/lib/models";
 
+import { normalizeImageUrl } from "@/lib/api";
+
 function ImageWithFallback({
   src,
   alt,
   fallbackTitle,
+  category,
   fill,
   sizes,
   className,
@@ -18,26 +21,38 @@ function ImageWithFallback({
   src: string;
   alt: string;
   fallbackTitle: string;
+  category?: string;
   fill?: boolean;
   sizes?: string;
   className?: string;
 }) {
   const [error, setError] = useState(false);
+  const resolvedSrc = normalizeImageUrl(src);
 
-  if (error || !src) {
+  // Safety net: if image is still a relative /uploads path (e.g. backend URL not set), never pass to next/image
+  const isBrokenRelative = !resolvedSrc || (resolvedSrc.startsWith("/uploads/") && !resolvedSrc.startsWith("http"));
+
+  if (error || isBrokenRelative) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#FAF9F7] text-[#6B6B6B] p-4 text-center select-none">
-        <Folder className="w-8 h-8 text-[#D40000]/60 mb-2" />
-        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#0A0A0A]">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#FAF9F7] via-[#F3F1EC] to-[#EAE6DF] text-[#6B6B6B] p-6 text-center select-none relative overflow-hidden">
+        <div className="w-12 h-12 rounded-2xl bg-white/80 border border-[rgba(10,10,10,0.06)] shadow-xs flex items-center justify-center mb-2.5">
+          <Folder className="w-6 h-6 text-[#D40000]/70" />
+        </div>
+        <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#0A0A0A] line-clamp-1 max-w-[85%]">
           {fallbackTitle}
         </span>
+        {category && (
+          <span className="text-[9px] font-mono text-[#D40000] uppercase tracking-widest mt-0.5">
+            {category}
+          </span>
+        )}
       </div>
     );
   }
 
   return (
     <Image
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       fill={fill}
       sizes={sizes}
@@ -187,6 +202,7 @@ export default function RecentWorkSection() {
                     src={project.coverImage}
                     alt={project.title}
                     fallbackTitle={project.title}
+                    category={project.category}
                     fill
                     sizes="(max-width: 640px) 85vw, 520px"
                     className={`object-cover transition-transform duration-500 ease-out ${
