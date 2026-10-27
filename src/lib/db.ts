@@ -32,7 +32,15 @@ interface LocalDB {
   activityLogs?: IActivityLog[];
 }
 
+// In production, NEVER touch the local filesystem. Only allow in dev when MONGODB_URI is absent.
+function allowLocalFs(): boolean {
+  return process.env.NODE_ENV !== "production" && (!process.env.MONGODB_URI || process.env.MONGODB_URI.trim() === "");
+}
+
 function ensureLocalDB(): LocalDB {
+  if (!allowLocalFs()) {
+    throw new Error("MONGODB_URI is not configured in production");
+  }
   const dir = path.dirname(DB_FILE_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -72,6 +80,9 @@ function ensureLocalDB(): LocalDB {
 }
 
 function saveLocalDB(data: LocalDB): void {
+  if (!allowLocalFs()) {
+    return;
+  }
   const dir = path.dirname(DB_FILE_PATH);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -91,6 +102,9 @@ let mongoConnectingPromise: Promise<boolean> | null = global._mongooseConnecting
 export async function connectDB(): Promise<boolean> {
   const uri = process.env.MONGODB_URI;
   if (!uri || uri.trim() === "") {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("MONGODB_URI is not configured");
+    }
     return false;
   }
   if (isMongoConnected && mongoose.connection.readyState === 1) return true;
@@ -103,7 +117,7 @@ export async function connectDB(): Promise<boolean> {
     try {
       mongoose.set("bufferCommands", false);
       await mongoose.connect(uri, {
-        serverSelectionTimeoutMS: 3000,
+        serverSelectionTimeoutMS: 5000,
         bufferCommands: false,
       });
       isMongoConnected = true;
@@ -115,18 +129,24 @@ export async function connectDB(): Promise<boolean> {
 
       // Dev-only warning if database has 0 projects or members
       if (process.env.NODE_ENV !== "production") {
-        ProjectModel.countDocuments().then((count) => {
-          if (count === 0) {
-            console.warn(`⚠️ [DEV WARNING] Connected MongoDB database "${mongoose.connection.name}" has 0 projects.`);
-          }
-        }).catch(() => {});
+        ProjectModel.countDocuments()
+          .then((count) => {
+            if (count === 0) {
+              console.warn(`⚠️ [DEV WARNING] Connected MongoDB database "${mongoose.connection.name}" has 0 projects.`);
+            }
+          })
+          .catch(() => {});
       }
 
       return true;
     } catch (err) {
       mongoose.set("bufferCommands", false);
       isMongoConnected = false;
-      console.warn("MongoDB connection failed, falling back to persistent JSON storage:", (err as any)?.message || err);
+      if (process.env.NODE_ENV === "production") {
+        console.error("MongoDB connection failed in production:", (err as any)?.message || err);
+        throw new Error(`MongoDB connection failed: ${(err as any)?.message || err}`);
+      }
+      console.warn("MongoDB connection failed in dev, falling back to local JSON storage:", (err as any)?.message || err);
       return false;
     } finally {
       mongoConnectingPromise = null;
@@ -156,7 +176,9 @@ export async function getProjects(publicOnly = false): Promise<IProject[]> {
 export async function getProjectById(id: string): Promise<IProject | null> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const doc = await ProjectModel.findOne({ id }).lean();
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const doc = await ProjectModel.findOne(filter).lean();
     return doc ? serialize(doc) : null;
   }
   const db = ensureLocalDB();
@@ -171,14 +193,6 @@ export async function createProject(project: IProject): Promise<IProject> {
       project.order = maxDoc && typeof maxDoc.order === "number" ? maxDoc.order + 1 : 1;
     }
     const created = await ProjectModel.create(project);
-    try {
-      const db = ensureLocalDB();
-      db.projects = db.projects.filter((p) => p.id !== project.id);
-      db.projects.unshift(project);
-      saveLocalDB(db);
-    } catch {
-      // ignore
-    }
     return serialize(created.toObject ? created.toObject() : created);
   }
   const db = ensureLocalDB();
@@ -194,21 +208,9 @@ export async function createProject(project: IProject): Promise<IProject> {
 export async function updateProject(id: string, updates: Partial<IProject>): Promise<IProject | null> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const updated = await ProjectModel.findOneAndUpdate({ id }, updates, { new: true }).lean();
-    if (updated) {
-      try {
-        const db = ensureLocalDB();
-        const idx = db.projects.findIndex((p) => p.id === id);
-        if (idx !== -1) {
-          db.projects[idx] = { ...db.projects[idx], ...updates };
-        } else {
-          db.projects.push(serialize(updated));
-        }
-        saveLocalDB(db);
-      } catch {
-        // ignore
-      }
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const updated = await ProjectModel.findOneAndUpdate(filter, updates, { returnDocument: 'after' }).lean();
     return updated ? serialize(updated) : null;
   }
   const db = ensureLocalDB();
@@ -222,14 +224,9 @@ export async function updateProject(id: string, updates: Partial<IProject>): Pro
 export async function deleteProject(id: string): Promise<boolean> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const res = await ProjectModel.deleteOne({ id });
-    try {
-      const db = ensureLocalDB();
-      db.projects = db.projects.filter((p) => p.id !== id);
-      saveLocalDB(db);
-    } catch {
-      // ignore
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const res = await ProjectModel.deleteOne(filter);
     return res.deletedCount > 0;
   }
   const db = ensureLocalDB();
@@ -263,14 +260,6 @@ export async function createTeamMember(member: ITeamMember): Promise<ITeamMember
       member.order = maxDoc && typeof maxDoc.order === "number" ? maxDoc.order + 1 : 1;
     }
     const created = await TeamMemberModel.create(member);
-    try {
-      const db = ensureLocalDB();
-      db.team = db.team.filter((m) => m.id !== member.id);
-      db.team.push(member);
-      saveLocalDB(db);
-    } catch {
-      // ignore
-    }
     return serialize(created.toObject ? created.toObject() : created);
   }
   const db = ensureLocalDB();
@@ -286,21 +275,9 @@ export async function createTeamMember(member: ITeamMember): Promise<ITeamMember
 export async function updateTeamMember(id: string, updates: Partial<ITeamMember>): Promise<ITeamMember | null> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const updated = await TeamMemberModel.findOneAndUpdate({ id }, updates, { new: true }).lean();
-    if (updated) {
-      try {
-        const db = ensureLocalDB();
-        const idx = db.team.findIndex((m) => m.id === id);
-        if (idx !== -1) {
-          db.team[idx] = { ...db.team[idx], ...updates };
-        } else {
-          db.team.push(serialize(updated));
-        }
-        saveLocalDB(db);
-      } catch {
-        // ignore
-      }
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const updated = await TeamMemberModel.findOneAndUpdate(filter, updates, { returnDocument: 'after' }).lean();
     return updated ? serialize(updated) : null;
   }
   const db = ensureLocalDB();
@@ -314,14 +291,9 @@ export async function updateTeamMember(id: string, updates: Partial<ITeamMember>
 export async function deleteTeamMember(id: string): Promise<boolean> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const res = await TeamMemberModel.deleteOne({ id });
-    try {
-      const db = ensureLocalDB();
-      db.team = db.team.filter((m) => m.id !== id);
-      saveLocalDB(db);
-    } catch {
-      // ignore
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const res = await TeamMemberModel.deleteOne(filter);
     return res.deletedCount > 0;
   }
   const db = ensureLocalDB();
@@ -369,15 +341,6 @@ export async function createTestimonial(testimonial: ITestimonial): Promise<ITes
       testimonial.order = maxDoc && typeof maxDoc.order === "number" ? maxDoc.order + 1 : 1;
     }
     const created = await TestimonialModel.create(testimonial);
-    // Also keep local DB in sync as fallback cache
-    try {
-      const db = ensureLocalDB();
-      db.testimonials = db.testimonials.filter((t) => t.id !== testimonial.id);
-      db.testimonials.push(testimonial);
-      saveLocalDB(db);
-    } catch {
-      // ignore
-    }
     return serialize(created.toObject ? created.toObject() : created);
   }
   const db = ensureLocalDB();
@@ -393,21 +356,9 @@ export async function createTestimonial(testimonial: ITestimonial): Promise<ITes
 export async function updateTestimonial(id: string, updates: Partial<ITestimonial>): Promise<ITestimonial | null> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const updated = await TestimonialModel.findOneAndUpdate({ id }, updates, { new: true }).lean();
-    if (updated) {
-      try {
-        const db = ensureLocalDB();
-        const idx = db.testimonials.findIndex((t) => t.id === id);
-        if (idx !== -1) {
-          db.testimonials[idx] = { ...db.testimonials[idx], ...updates };
-        } else {
-          db.testimonials.push(serialize(updated));
-        }
-        saveLocalDB(db);
-      } catch {
-        // ignore
-      }
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const updated = await TestimonialModel.findOneAndUpdate(filter, updates, { returnDocument: 'after' }).lean();
     return updated ? serialize(updated) : null;
   }
   const db = ensureLocalDB();
@@ -421,14 +372,9 @@ export async function updateTestimonial(id: string, updates: Partial<ITestimonia
 export async function deleteTestimonial(id: string): Promise<boolean> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    const res = await TestimonialModel.deleteOne({ id });
-    try {
-      const db = ensureLocalDB();
-      db.testimonials = db.testimonials.filter((t) => t.id !== id);
-      saveLocalDB(db);
-    } catch {
-      // ignore
-    }
+    const isObjectId = mongoose.Types.ObjectId.isValid(id);
+    const filter = isObjectId ? { $or: [{ id }, { _id: id }] } : { id };
+    const res = await TestimonialModel.deleteOne(filter);
     return res.deletedCount > 0;
   }
   const db = ensureLocalDB();
@@ -500,6 +446,7 @@ export async function getAdminByEmail(email: string): Promise<IAdmin | null> {
     const doc = await AdminModel.findOne({ email: new RegExp(`^${email.trim()}$`, "i") }).lean();
     if (doc) return { ...doc, _id: undefined } as any;
   }
+  if (!allowLocalFs()) return null;
   const db = ensureLocalDB();
   return db.admins.find((a) => a.email.toLowerCase() === email.trim().toLowerCase()) || null;
 }
@@ -539,20 +486,18 @@ export async function updateAdminPassword(email: string, newPasswordHash: string
 export async function getSiteSettings(): Promise<ISiteSettings> {
   const hasMongo = await connectDB();
   if (hasMongo) {
-    let settings = await SiteSettingsModel.findOne({ id: "site-settings-singleton" }).lean();
+    const settings = await SiteSettingsModel.findOne({ id: "site-settings-singleton" }).lean();
     if (!settings) {
-      // Seed default settings idempotently
-      await SiteSettingsModel.create(DEFAULT_SITE_SETTINGS);
+      // In-memory fallback if not yet initialized; do not write on GET in production
       return DEFAULT_SITE_SETTINGS;
     }
     return serialize(settings);
   }
-  const db = ensureLocalDB();
-  if (!db.siteSettings) {
-    db.siteSettings = DEFAULT_SITE_SETTINGS;
-    saveLocalDB(db);
+  if (!allowLocalFs()) {
+    return DEFAULT_SITE_SETTINGS;
   }
-  return db.siteSettings;
+  const db = ensureLocalDB();
+  return db.siteSettings || DEFAULT_SITE_SETTINGS;
 }
 
 export async function updateSiteSettings(data: Partial<ISiteSettings>): Promise<ISiteSettings> {
@@ -616,7 +561,9 @@ export async function getActivityLogs(limit = 100): Promise<IActivityLog[]> {
     const docs = await ActivityLogModel.find().sort({ timestamp: -1 }).limit(limit).lean();
     return serialize(docs);
   }
+  if (!allowLocalFs()) {
+    return [];
+  }
   const db = ensureLocalDB();
   return (db.activityLogs || []).slice(0, limit);
 }
-

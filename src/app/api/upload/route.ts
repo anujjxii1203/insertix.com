@@ -39,19 +39,13 @@ export async function POST(req: Request) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
     const cleanBaseName = path
       .basename(file.name, path.extname(file.name))
       .replace(/[^a-zA-Z0-9_-]/g, "_");
     const safeName = `${Date.now()}-${cleanBaseName}.webp`;
-    const filePath = path.join(uploadsDir, safeName);
 
-    // Auto-resize and compress every uploaded image with sharp (WebP, max dimension 1600 on longest side, quality 78, stripped metadata)
-    await sharp(buffer)
+    // Process image in memory with sharp
+    const optimizedBuffer = await sharp(buffer)
       .rotate() // Respect EXIF orientation
       .resize({
         width: 1600,
@@ -60,14 +54,58 @@ export async function POST(req: Request) {
         withoutEnlargement: true,
       })
       .webp({ quality: 78, effort: 6, force: true })
-      .toFile(filePath);
+      .toBuffer();
+
+    const imagekitPrivateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+    if (imagekitPrivateKey && imagekitPrivateKey.trim() !== "") {
+      // Cloud storage on ImageKit CDN
+      const ikFormData = new FormData();
+      ikFormData.append("file", new Blob([optimizedBuffer], { type: "image/webp" }), safeName);
+      ikFormData.append("fileName", safeName);
+      ikFormData.append("useUniqueFileName", "true");
+      ikFormData.append("folder", "/uploads");
+
+      const authHeader = "Basic " + Buffer.from(imagekitPrivateKey + ":").toString("base64");
+      const ikRes = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+        },
+        body: ikFormData,
+      });
+
+      if (ikRes.ok) {
+        const ikData = await ikRes.json();
+        return NextResponse.json({
+          success: true,
+          url: ikData.url,
+        });
+      }
+      console.warn("ImageKit direct upload failed, checking local fs fallback...");
+    }
+
+    // In production without ImageKit or local storage, fail clearly instead of attempting read-only fs write
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Upload failed: ImageKit is not configured in production environment" },
+        { status: 500 }
+      );
+    }
+
+    // Dev environment fallback to local public/uploads
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filePath = path.join(uploadsDir, safeName);
+    fs.writeFileSync(filePath, optimizedBuffer);
 
     return NextResponse.json({
       success: true,
       url: `/uploads/${safeName}`,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Upload failed" }, { status: 500 });
   }
 }
