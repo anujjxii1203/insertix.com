@@ -1,171 +1,570 @@
-import { ISiteSettings } from "./models";
+import { ISiteSettings, IProject, ITeamMember, ITestimonial } from "./models";
 
 export const DEFAULT_SITE_SETTINGS: ISiteSettings = {
-  id: "site-settings-singleton",
-  hero: {
-    badge: "Creative Media Agency",
-    headlineLine1: "We Shoot Stories",
-    headlineLine2: "That Make Brands",
-    accentWord: "unforgettable",
-    subtitle: "High-impact video shoots, photoshoots, product catalogues, event coverage and growth marketing tailored for ambitious brands.",
-    primaryBtnText: "View Recent Work",
-    secondaryBtnText: "Chat on WhatsApp",
+  "id": "site-settings-singleton",
+  "hero": {
+    "badge": "Creative Media Agency",
+    "headlineLine1": "We Shoot Stories",
+    "headlineLine2": "That Make Brands",
+    "accentWord": "unforgettable",
+    "subtitle": "High-impact video shoots, photoshoots, product catalogues, event coverage and growth marketing tailored for ambitious brands.",
+    "primaryBtnText": "View Recent Work",
+    "secondaryBtnText": "Chat on WhatsApp"
   },
-  heroStats: [
-    { value: "140+", suffix: "", label: "Projects Completed", visible: true, order: 0 },
-    { value: "65+", suffix: "", label: "Brand Partners", visible: true, order: 1 },
-    { value: "10M+", suffix: "", label: "Audience Views", visible: true, order: 2 },
-    { value: "99%", suffix: "", label: "Satisfaction Rate", visible: true, order: 3 },
-  ],
-  about: {
-    heading: "A New Era Of",
-    accentWord: "Creative Media",
-    paragraphs: [
-      "Born at the intersection of cinematic camera craft and high-impact digital reach, Insertix Media produces visual assets engineered to convert attention into brand equity.",
-      "From multi-camera commercial sets and studio fashion captures to viral short-form sequences and performance ad creative, our team delivers production value that sets industry standards.",
-    ],
-    counters: [
-      { label: "Projects Delivered", number: 10, suffix: "+" },
-      { label: "Happy Clients", number: 6, suffix: "+" },
-      { label: "Years of Excellence", number: 1, suffix: "+" },
-      { label: "Core Specialists", number: 5, suffix: "" },
-    ],
-  },
-  trustedBrands: {
-    heading: "Trusted by Industry Leaders & Fast-Growing Brands",
-    visible: true,
-    brands: [
-      { name: "ARUNIMA COUTURE", visible: true, order: 0 },
-      { name: "TWO HEARTS CAFE", visible: true, order: 1 },
-      { name: "NO SHIT", visible: true, order: 2 },
-      { name: "XARTECH", visible: true, order: 3 },
-      { name: "IN HOUSE CAFE", visible: true, order: 4 },
-      { name: "BEATBAND", visible: true, order: 5 },
-      { name: "GANGA FARMS", visible: true, order: 6 },
-    ],
-  },
-  services: [
+  "heroStats": [
     {
-      id: "video-shoots",
-      title: "Video Shoots",
-      tag: "CINEMATIC FILMS",
-      icon: "Video",
-      description: "Brand films, commercials, ad films, reels and corporate videos shot with cinema cameras, pro lighting and polished editing.",
-      features: [
+      "value": "13",
+      "suffix": "",
+      "label": "Projects Completed",
+      "visible": true,
+      "order": 0
+    },
+    {
+      "value": "6",
+      "suffix": "",
+      "label": "Brand Partners",
+      "visible": true,
+      "order": 1
+    },
+    {
+      "value": "100K",
+      "suffix": "",
+      "label": "Audience Views",
+      "visible": true,
+      "order": 2
+    }
+  ],
+  "about": {
+    "heading": "A New Era Of",
+    "accentWord": "Creative Media",
+    "paragraphs": [
+      "Born at the intersection of cinematic camera craft and high-impact digital reach, Insertix Media produces visual assets engineered to convert attention into brand equity.",
+      "From multi-camera commercial sets and studio fashion captures to viral short-form sequences and performance ad creative, our team delivers production value that sets industry standards."
+    ],
+    "counters": [
+      {
+        "label": "Projects Delivered",
+        "number": 10,
+        "suffix": "+"
+      },
+      {
+        "label": "Happy Clients",
+        "number": 6,
+        "suffix": "+"
+      },
+      {
+        "label": "Years of Excellence",
+        "number": 1,
+        "suffix": "+"
+      },
+      {
+        "label": "Core Specialists",
+        "number": 5,
+        "suffix": ""
+      }
+    ]
+  },
+  "trustedBrands": {
+    "heading": "Trusted by Industry Leaders & Fast-Growing Brands",
+    "visible": true,
+    "brands": [
+      {
+        "name": "Arunima cottour ",
+        "order": 0,
+        "visible": true
+      },
+      {
+        "name": "Two hearts cafe",
+        "order": 1,
+        "visible": true
+      },
+      {
+        "name": "No siht",
+        "order": 2,
+        "visible": true
+      },
+      {
+        "name": "Xartech",
+        "order": 3,
+        "visible": true
+      },
+      {
+        "name": "In house cafe",
+        "order": 4,
+        "visible": true
+      },
+      {
+        "name": "Two hearts cafe",
+        "order": 5,
+        "visible": true
+      },
+      {
+        "name": "Beatband",
+        "order": 6,
+        "visible": true
+      },
+      {
+        "name": "Ganga farms",
+        "order": 7,
+        "visible": true
+      }
+    ]
+  },
+  "services": [
+    {
+      "id": "video-shoots",
+      "title": "Video Shoots",
+      "tag": "CINEMATIC FILMS",
+      "description": "Brand films, commercials, ad films, reels and corporate videos shot with cinema cameras, pro lighting and polished editing.",
+      "features": [
         "Ad Films & Commercials",
         "Reels & Short-Form Videos",
-        "Editing, Color Grading & Sound",
+        "Editing, Color Grading & Sound"
       ],
-      visible: true,
-      order: 0,
+      "icon": "Video",
+      "visible": true,
+      "order": 0
     },
     {
-      id: "photoshoots",
-      title: "Photoshoots",
-      tag: "STUDIO & OUTDOOR",
-      icon: "Camera",
-      description: "Portrait, fashion, corporate and lifestyle photography, in our studio or on location, with professional retouching.",
-      features: [
+      "id": "photoshoots",
+      "title": "Photoshoots",
+      "tag": "STUDIO & OUTDOOR",
+      "description": "Portrait, fashion, corporate and lifestyle photography, in our studio or on location, with professional retouching.",
+      "features": [
         "Portrait & Fashion Shoots",
         "Corporate & Team Photos",
-        "Professional Retouching",
+        "Professional Retouching"
       ],
-      visible: true,
-      order: 1,
+      "icon": "Camera",
+      "visible": true,
+      "order": 1
     },
     {
-      id: "marketing",
-      title: "Marketing",
-      tag: "GROWTH & REACH",
-      icon: "Megaphone",
-      description: "Social media and digital marketing that gets your content in front of the right audience and turns views into customers.",
-      features: [
+      "id": "marketing",
+      "title": "Marketing",
+      "tag": "GROWTH & REACH",
+      "description": "Social media and digital marketing that gets your content in front of the right audience and turns views into customers.",
+      "features": [
         "Social Media Management",
         "Paid Ads (Meta & Google)",
-        "Content Strategy & Reach",
+        "Content Strategy & Reach"
       ],
-      visible: true,
-      order: 2,
+      "icon": "Megaphone",
+      "visible": true,
+      "order": 2
     },
     {
-      id: "product-shoot",
-      title: "Product Shoot",
-      tag: "E-COMMERCE READY",
-      icon: "Package",
-      description: "Clean, high-quality product photos and videos for e-commerce, catalogues and ads that make your products sell.",
-      features: [
+      "id": "product-shoot",
+      "title": "Product Shoot",
+      "tag": "E-COMMERCE READY",
+      "description": "Clean, high-quality product photos and videos for e-commerce, catalogues and ads that make your products sell.",
+      "features": [
         "White-Background & Lifestyle Shots",
         "Product Videos & 360° Views",
-        "Catalogue & Marketplace Ready",
+        "Catalogue & Marketplace Ready"
       ],
-      visible: true,
-      order: 3,
+      "icon": "Package",
+      "visible": true,
+      "order": 3
     },
     {
-      id: "event-shoots",
-      title: "Event Shoots",
-      tag: "LIVE COVERAGE",
-      icon: "Calendar",
-      description: "Weddings, concerts, corporate events and launches covered with photo, video, highlight reels and drone shots.",
-      features: [
+      "id": "event-shoots",
+      "title": "Event Shoots",
+      "tag": "LIVE COVERAGE",
+      "description": "Weddings, concerts, corporate events and launches covered with photo, video, highlight reels and drone shots.",
+      "features": [
         "Photo & Video Coverage",
         "Highlight Reels & Aftermovies",
-        "Drone & Multi-Camera Setup",
+        "Drone & Multi-Camera Setup"
       ],
-      visible: true,
-      order: 4,
-    },
+      "icon": "Calendar",
+      "visible": true,
+      "order": 4
+    }
   ],
-  contact: {
-    email: "insertixmedia@gmail.com",
-    phone1: "+91 97171 50055",
-    phone2: "+91 63875 76969",
-    city: "New Delhi, India",
-    workingHours: "Available Mon to Sat, 10 AM to 8 PM IST",
-    copyrightCompany: "INSERTIX MEDIA LLC",
-    footerTagline: "Creative media agency for video shoots, photoshoots, product shoots, event coverage and marketing that turns ideas into unforgettable content.",
-    instagram: "https://www.instagram.com/insertixmedia",
-    linkedin: "https://www.linkedin.com/company/insertixmedia",
-    whatsappNumber: "919717150055",
+  "contact": {
+    "email": "insertixmedia@gmail.com",
+    "phone1": "+91 97171 50055",
+    "phone2": "+91 63875 76969",
+    "city": "New Delhi, India",
+    "workingHours": "Available Mon to Sat, 10 AM to 8 PM IST",
+    "copyrightCompany": "INSERTIX MEDIA LLC",
+    "footerTagline": "Creative media agency for video shoots, photoshoots, product shoots, event coverage and marketing that turns ideas into unforgettable content.",
+    "instagram": "https://www.instagram.com/insertixmedia",
+    "linkedin": "https://www.linkedin.com/company/insertixmedia",
+    "whatsappNumber": "919717150055"
   },
-  seo: {
-    title: "Insertix Media — Creative Media Production & Growth Agency",
-    description: "Award-winning media production agency specializing in video shoots, brand films, photoshoots, product shoots and high-reach marketing.",
-    ogImage: "/og-image.jpg",
+  "seo": {
+    "title": "Insertix Media — Creative Media Production & Growth Agency",
+    "description": "Award-winning media production agency specializing in video shoots, brand films, photoshoots, product shoots and high-reach marketing.",
+    "ogImage": "/og-image.jpg"
   },
-  sectionHeadings: {
-    work: {
-      title: "What We",
-      accentWord: "Dominate",
-      subtext: "Everything you need to shoot it, show it and sell it.",
+  "sectionHeadings": {
+    "work": {
+      "title": "What We",
+      "accentWord": "Dominate",
+      "subtext": "Everything you need to shoot it, show it and sell it."
     },
-    about: {
-      title: "A New Era Of",
-      accentWord: "Creative Media",
-      subtext: "Our Story and Numbers",
+    "about": {
+      "title": "A New Era Of",
+      "accentWord": "Creative Media",
+      "subtext": "Our Story and Numbers"
     },
-    members: {
-      title: "Meet The",
-      accentWord: "Members",
-      subtext: "Our core collective unites award-winning cinematographers, photographers, video editors, marketing leads, and production managers.",
+    "members": {
+      "title": "Meet The",
+      "accentWord": "Members",
+      "subtext": "Our core collective unites award-winning cinematographers, photographers, video editors, marketing leads, and production managers."
     },
-    recentWork: {
-      title: "Recent",
-      accentWord: "Work",
-      subtext: "A showcase of high-converting visual stories we delivered.",
+    "recentWork": {
+      "title": "Recent",
+      "accentWord": "Work",
+      "subtext": "A showcase of high-converting visual stories we delivered."
     },
-    partners: {
-      title: "Words From Our",
-      accentWord: "Partners",
-      subtext: "What industry leaders and founders say about collaborating with Insertix.",
+    "partners": {
+      "title": "Words From Our",
+      "accentWord": "Partners",
+      "subtext": "What industry leaders and founders say about collaborating with Insertix."
     },
-    contact: {
-      title: "Let's Create",
-      accentWord: "something iconic",
-      subtext: "Have a bold vision? We are ready to bring it to life.",
-    },
+    "contact": {
+      "title": "Let's Create",
+      "accentWord": "something iconic",
+      "subtext": "Have a bold vision? We are ready to bring it to life."
+    }
   },
-  themeDefault: "system",
-  useScriptFontForAccents: true,
-  updatedAt: new Date().toISOString(),
+  "themeDefault": "system",
+  "useScriptFontForAccents": true,
+  "updatedAt": new Date().toISOString()
 };
+
+
+export const INITIAL_PROJECTS: IProject[] = [
+  {
+    "id": "proj-video-1",
+    "title": "Arunimacouture Photoshoot",
+    "category": "photo",
+    "client": "Arunima couture ",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792952545019-crop-1792952544949_fYej32oGz.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/p/DeHXepAyoY0/",
+    "featured": true,
+    "deliverables": [
+      "4K Cinema Ad",
+      "60s Brand Film",
+      "Reels & Short-Form Cutdowns"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2025-02-15T00:00:00.000Z",
+    "order": 1,
+    "visible": true
+  },
+  {
+    "id": "proj-video-2",
+    "title": "Carnival Event",
+    "category": "event",
+    "client": "Twoheartcafe",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792952628652-crop-1792952628608_t0fCJjjbG.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/p/DerO18dJk4S",
+    "featured": true,
+    "deliverables": [
+      "Hero Commercial",
+      "Instagram Reels Series",
+      "Cinema Surround Mix"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2024-11-10T00:00:00.000Z",
+    "order": 2,
+    "visible": true
+  },
+  {
+    "id": "proj-photo-1",
+    "title": "Add shoot ",
+    "category": "product",
+    "client": "NO SHIT",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792952719702-crop-1792952719607_2aUsoPAJF.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/reel/DaUjhx3RLHV",
+    "featured": true,
+    "deliverables": [
+      "Festive Lookbook",
+      "Outdoor Portrait Suite",
+      "High-End Retouching"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2025-01-20T00:00:00.000Z",
+    "order": 3,
+    "visible": true
+  },
+  {
+    "id": "proj-photo-2",
+    "title": "Arunimacouture Shoot",
+    "category": "video",
+    "client": "Arunima couture",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792952792801-crop-1792952792627_P4-AbksWj.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/p/DecFn5jOvDR",
+    "featured": false,
+    "deliverables": [
+      "Studio Executive Portraits",
+      "Editorial Press Kit",
+      "Location Team Shoot"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2024-10-18T00:00:00.000Z",
+    "order": 4,
+    "visible": true
+  },
+  {
+    "id": "proj-product-1",
+    "title": "arunimacouture Shoot",
+    "category": "video",
+    "client": "Arunima couture ",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792953670834-crop-1792953670808_SS5WkC-Xp.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/p/Dd8BGQwyQS8",
+    "featured": true,
+    "deliverables": [
+      "White-Background E-Com Set",
+      "Dynamic Water-Splash Shots",
+      "360° Rotating Views"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2025-03-01T00:00:00.000Z",
+    "order": 5,
+    "visible": true
+  },
+  {
+    "id": "proj-product-2",
+    "title": "Add Shoot",
+    "category": "product",
+    "client": "NO SHIT",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792953760503-crop-1792953760473_yCQExYh7Q.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/reel/Dak9g9CRC2W",
+    "featured": false,
+    "deliverables": [
+      "Catalogue Stills",
+      "Macro Texture Stills",
+      "Marketplace Ready Assets"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2024-09-14T00:00:00.000Z",
+    "order": 6,
+    "visible": true
+  },
+  {
+    "id": "proj-event-1",
+    "title": "oovlifestyle Add",
+    "category": "marketing",
+    "client": "oovlifestyle",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792953865579-crop-1792953865521_ZeLV8E-ID.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/reel/Db7hiw-hltU",
+    "featured": true,
+    "deliverables": [
+      "4K Festival Aftermovie",
+      "FPV Drone Coverage",
+      "Real-Time Artist Reels"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2024-12-28T00:00:00.000Z",
+    "order": 7,
+    "visible": true
+  },
+  {
+    "id": "proj-event-2",
+    "title": "Musical eve ",
+    "category": "event",
+    "client": "Two Hearts Cafe",
+    "description": "",
+    "coverImage": "https://ik.imagekit.io/anujjxii/insertix/1792954204793-crop-1792954204727_LH0TePAB8.webp",
+    "videoPreview": "",
+    "link": "https://www.instagram.com/p/DcMLAbcCUfP/?img_index=2",
+    "featured": false,
+    "deliverables": [
+      "Cinematic Wedding Film",
+      "Full Candid Photo Library",
+      "Sangeet Highlights Reel"
+    ],
+    "metrics": "",
+    "year": "2026",
+    "createdAt": "2025-02-04T00:00:00.000Z",
+    "order": 8,
+    "visible": true
+  }
+];
+
+export const INITIAL_TEAM: ITeamMember[] = [
+  {
+    "id": "team-1",
+    "name": "Prateek Singh",
+    "role": "Production lead",
+    "bio": "Thinks creative vision, coordinates the team",
+    "avatar": "https://ik.imagekit.io/rqv6tlumh/insertix/team/1793127465274-IMG_5001_7IUUCfrD-.webp",
+    "socials": {
+      "linkedin": "https://linkedin.com",
+      "instagram": "https://instagram.com",
+      "twitter": "https://twitter.com"
+    },
+    "order": 1,
+    "visible": true,
+    "focalX": 50,
+    "focalY": 32,
+    "zoom": 1
+  },
+  {
+    "id": "team-4",
+    "name": "Kavita Goswami",
+    "role": "Graphic Designer",
+    "bio": "Creates bold, clean visuals for brands.",
+    "avatar": "https://ik.imagekit.io/rqv6tlumh/insertix/team/1793127606734-IMG_1221_qZy9Fz6z_.webp",
+    "socials": {
+      "linkedin": "https://linkedin.com",
+      "twitter": "https://x.com",
+      "instagram": "https://www.instagram.com/kavitaa_19/"
+    },
+    "order": 2,
+    "visible": true,
+    "focalX": 50,
+    "focalY": 35,
+    "zoom": 1,
+    "instagram": "https://www.instagram.com/kavitaa_19/"
+  },
+  {
+    "id": "team-2",
+    "name": "Rudransh Singh",
+    "role": "Post-production specialist ",
+    "bio": "Creative editor and  Preset maker ",
+    "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-2_KcrRtgE1r.webp",
+    "socials": {
+      "instagram": "https://www.instagram.com/someonewhofilms/"
+    },
+    "order": 3,
+    "visible": true,
+    "instagram": "https://www.instagram.com/someonewhofilms/"
+  },
+  {
+    "id": "team-5",
+    "name": "Advik Bajpai",
+    "role": "Operational Lead & Production Strategist",
+    "bio": "Develops strategies to ensure smooth work",
+    "avatar": "https://ik.imagekit.io/rqv6tlumh/insertix/team/1793127800536-WhatsApp_Image_2026-10-25_at_11_47_59_AM_zSs2YQgWu.webp",
+    "socials": {
+      "linkedin": "https://linkedin.com",
+      "twitter": "https://twitter.com",
+      "instagram": "https://www.instagram.com/khichkyaun/"
+    },
+    "order": 5,
+    "visible": true,
+    "focalX": 50,
+    "focalY": 41,
+    "zoom": 1,
+    "instagram": "https://www.instagram.com/khichkyaun/"
+  },
+  {
+    "id": "team-6",
+    "name": "Pratyush Rohilla",
+    "role": "Cinemetographer",
+    "bio": "Captures compelling visuals through creative camera ",
+    "avatar": "https://ik.imagekit.io/rqv6tlumh/insertix/team/1793127729534-WhatsApp_Image_2026-10-27_at_8_23_19_PM_V6uMFUW37.webp",
+    "socials": {
+      "linkedin": "https://linkedin.com",
+      "instagram": "https://www.instagram.com/pratyush__rohilla/"
+    },
+    "order": 6,
+    "visible": true,
+    "focalX": 50,
+    "focalY": 0,
+    "zoom": 1,
+    "instagram": "https://www.instagram.com/pratyush__rohilla/"
+  }
+];
+
+export const INITIAL_TESTIMONIALS: ITestimonial[] = [
+  {
+    "id": "test-1",
+    "clientName": "Arunima ",
+    "company": "Arunima cottour",
+    "role": "Clothing brand",
+    "content": "INSERTIX Media understood our brand's vision perfectly. The content and visuals gave our clothing brand a more premium and professional look. Loved the creativity and attention to detail!”",
+    "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200&auto=format&fit=crop",
+    "rating": 5,
+    "order": 1,
+    "visible": true
+  },
+  {
+    "id": "test-2",
+    "clientName": "Pooja Hegde",
+    "company": "Fondof fashions",
+    "role": "Creative Head",
+    "content": "Working with INSERTIX Media was an amazing experience. Their creativity, attention to detail, and professional approach really make their work stand out. They know how to turn ideas into impactful visuals!",
+    "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop",
+    "rating": 5,
+    "order": 2,
+    "visible": true
+  },
+  {
+    "id": "test-3",
+    "clientName": "Aditya Roy",
+    "company": "Oov lifestyle ",
+    "role": "VP Consumer Products",
+    "content": "INSERTIX Media did a great job bringing our brand’s personality to life. The visuals were creative, stylish, and perfectly aligned with our vision. A smooth and professional experience from start to finish!",
+    "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=200&auto=format&fit=crop",
+    "rating": 5,
+    "order": 3,
+    "visible": true
+  },
+  {
+    "id": "test-4",
+    "clientName": "Simran Kaur",
+    "company": "Beatband",
+    "role": "Festival Director",
+    "content": "INSERTIX Media brought a fresh and stylish perspective to our brand. The creative visuals perfectly captured our vibe, making our products stand out with a clean and modern aesthetic. Loved the attention to detail!",
+    "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=200&auto=format&fit=crop",
+    "rating": 5,
+    "order": 4,
+    "visible": true
+  },
+  {
+    "id": "test-1793131073053",
+    "clientName": "",
+    "company": "S cafe",
+    "role": "",
+    "content": "Insertix Media delivered top-notch visuals and promotional reels for our cafe launch. Truly remarkable work!",
+    "avatar": "",
+    "rating": 5,
+    "order": 5,
+    "visible": true,
+    "focalX": 50,
+    "focalY": 50,
+    "zoom": 1
+  },
+  {
+    "id": "test-1793131169633",
+    "clientName": "",
+    "company": "S cafe",
+    "role": "",
+    "content": "Insertix Media delivered top-notch visuals and promotional reels for our cafe launch. Truly remarkable work!",
+    "avatar": "",
+    "rating": 5,
+    "order": 6,
+    "visible": true,
+    "focalX": 50,
+    "focalY": 50,
+    "zoom": 1
+  }
+];
