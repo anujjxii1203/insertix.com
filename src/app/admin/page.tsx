@@ -37,6 +37,7 @@ import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
 import { PROJECT_CATEGORIES } from "@/constants/inquiry";
 import ImageCropperModal from "@/components/ui/ImageCropperModal";
 import SettingsTab from "@/components/admin/SettingsTab";
+import AvatarPlaceholder from "@/components/ui/AvatarPlaceholder";
 import { useLiveEvent } from "@/lib/liveSync";
 import { authFetch, getAuthHeader, clearAdminToken, getReturnTab, clearDraft, saveDraft } from "@/lib/adminAuth";
 
@@ -498,9 +499,9 @@ export default function AdminDashboardPage() {
       visible: editingTestimonial.visible ?? true,
     };
 
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method,
-      headers: { "Content-Type": "application/json", ...getAuthHeader() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
@@ -519,7 +520,8 @@ export default function AdminDashboardPage() {
       }
     } else {
       const body = await res.json().catch(() => ({}));
-      alert(body.error || `Error saving testimonial (${res.status})`);
+      const errorMsg = body.error || (body.details ? JSON.stringify(body.details) : `Error saving testimonial (${res.status})`);
+      alert(errorMsg);
     }
   };
 
@@ -1124,9 +1126,7 @@ export default function AdminDashboardPage() {
               <button
                 onClick={() =>
                   setEditingTestimonial({
-                    clientName: "",
                     company: "",
-                    role: "",
                     content: "",
                     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200",
                     rating: 5,
@@ -1173,14 +1173,9 @@ export default function AdminDashboardPage() {
                     </p>
 
                     <div className="flex items-center gap-3">
-                      <div className="relative w-11 h-11 rounded-full overflow-hidden border border-[rgba(10,10,10,0.08)]">
-                        <Image src={t.avatar} alt={t.clientName} fill sizes="44px" className="object-cover" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold text-[#0A0A0A]">{t.clientName}</h4>
-                        <p className="text-xs font-mono text-[#6B6B6B]">
-                          {t.role}, <span className="font-semibold text-[#0A0A0A]">{t.company}</span>
-                        </p>
+                      <AvatarPlaceholder size={44} className="border-[rgba(10,10,10,0.08)]" />
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-bold text-[#0A0A0A] truncate">{t.company || t.clientName || "Company"}</h4>
                       </div>
                     </div>
                   </div>
@@ -2029,39 +2024,14 @@ export default function AdminDashboardPage() {
             </div>
 
             <form onSubmit={saveTestimonial} className="space-y-4 text-xs font-mono">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Client Name</label>
-                  <input
-                    required
-                    type="text"
-                    value={editingTestimonial.clientName || ""}
-                    onChange={(e) => setEditingTestimonial({ ...editingTestimonial, clientName: e.target.value })}
-                    placeholder="e.g. Rohan Verma"
-                    className="w-full h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Company Name</label>
-                  <input
-                    required
-                    type="text"
-                    value={editingTestimonial.company || ""}
-                    onChange={(e) => setEditingTestimonial({ ...editingTestimonial, company: e.target.value })}
-                    placeholder="e.g. Zomato Dining"
-                    className="w-full h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Role / Title</label>
+                <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Company Name</label>
                 <input
                   required
                   type="text"
-                  value={editingTestimonial.role || ""}
-                  onChange={(e) => setEditingTestimonial({ ...editingTestimonial, role: e.target.value })}
-                  placeholder="e.g. Brand Marketing Lead"
+                  value={editingTestimonial.company || ""}
+                  onChange={(e) => setEditingTestimonial({ ...editingTestimonial, company: e.target.value })}
+                  placeholder="e.g. boAt Lifestyle, Zomato Dining, Fabindia"
                   className="w-full h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
                 />
               </div>
@@ -2107,177 +2077,6 @@ export default function AdminDashboardPage() {
                     {editingTestimonial.rating || 5} / 5 Stars
                   </span>
                 </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-[#6B6B6B] uppercase font-bold">Avatar URL</label>
-                  <span className="text-[11px] font-mono text-[#D40000]">Ratio: 1:1</span>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    required
-                    type="text"
-                    value={editingTestimonial.avatar || ""}
-                    onChange={(e) => setEditingTestimonial({ ...editingTestimonial, avatar: e.target.value })}
-                    className="flex-1 h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
-                  />
-                  <label className="h-13 px-5 rounded-xl bg-white hover:bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] cursor-pointer flex items-center gap-1.5 text-xs text-[#0A0A0A] font-bold shadow-2xs hover:border-[#D40000]/40 transition-colors">
-                    <Upload className="w-3.5 h-3.5 text-[#D40000]" />
-                    <span>Upload & Crop</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/avif"
-                      disabled={uploading}
-                      className="hidden"
-                      onChange={(e) =>
-                        handleFileSelectForCrop(
-                          e,
-                          "1:1",
-                          ["1:1"],
-                          "Crop Client Avatar (1:1)",
-                          (data) =>
-                            setEditingTestimonial((prev) => ({
-                              ...prev,
-                              avatar: data.url || prev?.avatar,
-                              focalX: data.focalX,
-                              focalY: data.focalY,
-                              zoom: data.zoom,
-                            })),
-                          editingTestimonial.focalX ?? 50,
-                          editingTestimonial.focalY ?? 50,
-                          editingTestimonial.zoom ?? 1
-                        )
-                      }
-                    />
-                  </label>
-                </div>
-
-                {/* Dropzone for Testimonial */}
-                <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const dropped = e.dataTransfer.files?.[0];
-                    if (dropped) {
-                      processImageFile(
-                        dropped,
-                        "1:1",
-                        ["1:1"],
-                        "Crop Client Avatar (1:1)",
-                        (data) =>
-                          setEditingTestimonial((prev) => ({
-                            ...prev,
-                            avatar: data.url || prev?.avatar,
-                            focalX: data.focalX,
-                            focalY: data.focalY,
-                            zoom: data.zoom,
-                          })),
-                        editingTestimonial.focalX ?? 50,
-                        editingTestimonial.focalY ?? 50,
-                        editingTestimonial.zoom ?? 1
-                      );
-                    }
-                  }}
-                  onPaste={(e) => {
-                    const items = e.clipboardData?.items;
-                    if (!items) return;
-                    for (let i = 0; i < items.length; i++) {
-                      if (items[i].type.startsWith("image/")) {
-                        const pasted = items[i].getAsFile();
-                        if (pasted) {
-                          processImageFile(
-                            pasted,
-                            "1:1",
-                            ["1:1"],
-                            "Crop Client Avatar (1:1)",
-                            (data) =>
-                              setEditingTestimonial((prev) => ({
-                                ...prev,
-                                avatar: data.url || prev?.avatar,
-                                focalX: data.focalX,
-                                focalY: data.focalY,
-                                zoom: data.zoom,
-                              })),
-                            editingTestimonial.focalX ?? 50,
-                            editingTestimonial.focalY ?? 50,
-                            editingTestimonial.zoom ?? 1
-                          );
-                          break;
-                        }
-                      }
-                    }
-                  }}
-                  className="mt-2 p-2.5 rounded-xl border border-dashed border-[rgba(10,10,10,0.15)] bg-[#FAF9F7]/60 text-center text-[11px] font-mono text-[#6B6B6B] hover:border-[#D40000]/40 transition-colors cursor-pointer"
-                >
-                  Drag & drop avatar here or paste (Ctrl+V)
-                </div>
-
-                {editingTestimonial.avatar && (
-                  <div className="mt-2.5 flex items-center gap-3">
-                    <div className="relative w-16 h-16 rounded-full overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#EAE8E4]">
-                      <div
-                        className="relative w-full h-full overflow-hidden rounded-full"
-                        style={{
-                          transform:
-                            (editingTestimonial.zoom ?? 1) > 1
-                              ? `scale(${editingTestimonial.zoom})`
-                              : "none",
-                          transformOrigin: `${editingTestimonial.focalX ?? 50}% ${editingTestimonial.focalY ?? 50}%`,
-                        }}
-                      >
-                        <Image
-                          src={editingTestimonial.avatar}
-                          alt="Preview"
-                          fill
-                          sizes="64px"
-                          style={{
-                            objectFit: "cover",
-                            objectPosition: `${editingTestimonial.focalX ?? 50}% ${editingTestimonial.focalY ?? 50}%`,
-                          }}
-                          className="object-cover"
-                          unoptimized={editingTestimonial.avatar.startsWith("data:")}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-mono text-[#6B6B6B]">
-                        ✓ 1:1 Avatar ({editingTestimonial.focalX ?? 50}% {editingTestimonial.focalY ?? 50}%)
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (editingTestimonial.avatar) {
-                            setCropperState({
-                              imageSrc: editingTestimonial.avatar,
-                              initialAspectRatio: "1:1",
-                              allowedRatios: ["1:1"],
-                              initialFocalX: editingTestimonial.focalX ?? 50,
-                              initialFocalY: editingTestimonial.focalY ?? 50,
-                              initialZoom: editingTestimonial.zoom ?? 1,
-                              title: "Recrop Client Avatar (1:1)",
-                              onComplete: (data) =>
-                                setEditingTestimonial((prev) => ({
-                                  ...prev,
-                                  focalX: data.focalX,
-                                  focalY: data.focalY,
-                                  zoom: data.zoom,
-                                })),
-                            });
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-white hover:bg-[#D40000] text-[#0A0A0A] hover:text-white border border-[rgba(10,10,10,0.12)] transition-colors cursor-pointer shadow-2xs"
-                      >
-                        <Crop className="w-3.5 h-3.5 text-[#D40000] group-hover:text-white" />
-                        <span>Recrop</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="flex items-center gap-3 pt-2">

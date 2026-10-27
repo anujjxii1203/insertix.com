@@ -101,7 +101,7 @@ export async function GET() {
 // PUT /api/settings
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

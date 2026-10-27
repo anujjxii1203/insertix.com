@@ -172,69 +172,83 @@
   "team": [
     {
       "id": "team-1",
-      "name": "Pratick",
-      "role": "cinematographer",
-      "bio": "Visionary storyteller directing commercials and high-impact brand shoots with cinematic precision.",
-      "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-1_yvD7hrWp4.webp",
+      "name": "Prateek Singh",
+      "role": "Production lead",
+      "bio": "Thinks creative vision, coordinates the team, and ensures every project meets quality standards",
+      "avatar": "/uploads/1793127465274-IMG_5001.webp",
       "socials": {
         "linkedin": "https://linkedin.com",
         "instagram": "https://instagram.com",
         "twitter": "https://twitter.com"
       },
       "order": 1,
-      "visible": true
-    },
-    {
-      "id": "team-2",
-      "name": "Rudransh",
-      "role": "video editor",
-      "bio": "Video editor who turns raw footage into cinematic reels, ad films and event highlights",
-      "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-2_KcrRtgE1r.webp",
-      "socials": {
-        "instagram": "https://instagram.com",
-        "linkedin": "https://linkedin.com"
-      },
-      "order": 3,
-      "visible": true
+      "visible": true,
+      "focalX": 50,
+      "focalY": 32,
+      "zoom": 1
     },
     {
       "id": "team-4",
-      "name": "Kavita",
+      "name": "Kavita Goswami",
       "role": "Graphic Designer",
-      "bio": "Graphic designer who creates bold, clean visuals for brands, ads and social media.",
-      "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-4_OlW8bfleY.webp",
+      "bio": "Graphic designer who creates bold, clean visuals for brands.",
+      "avatar": "/uploads/1793127606734-IMG_1221.webp",
       "socials": {
         "linkedin": "https://linkedin.com",
         "twitter": "https://x.com"
       },
       "order": 2,
-      "visible": true
+      "visible": true,
+      "focalX": 50,
+      "focalY": 35,
+      "zoom": 1
+    },
+    {
+      "id": "team-2",
+      "name": "Rudransh Singh",
+      "role": "Post-production specialist ",
+      "bio": "our Post-production specialist, creative editor and  Preset maker ",
+      "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-2_KcrRtgE1r.webp",
+      "socials": {
+        "instagram": "https://www.instagram.com/someonewhofilms/"
+      },
+      "order": 3,
+      "visible": true,
+      "focalX": 50,
+      "focalY": 20,
+      "zoom": 1
     },
     {
       "id": "team-5",
-      "name": "Advik",
-      "role": "cinematographer",
-      "bio": "Visionary storyteller directing commercials and high-impact brand shoots with cinematic precision.\n",
-      "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-5_Yi4KVfUT-.webp",
+      "name": "Advik Bajpai",
+      "role": "Operational Lead & Production Strategist",
+      "bio": "Oversees production workflows, coordinates team operations, and develops strategies to ensure smooth and efficient project execution.",
+      "avatar": "/uploads/1793127800536-WhatsApp_Image_2026-10-25_at_11_47_59_AM.webp",
       "socials": {
         "linkedin": "https://linkedin.com",
         "twitter": "https://twitter.com"
       },
       "order": 5,
-      "visible": true
+      "visible": true,
+      "focalX": 50,
+      "focalY": 41,
+      "zoom": 1
     },
     {
       "id": "team-6",
-      "name": "Shubham Tiwari",
-      "role": "Production Manager",
-      "bio": "Logistics powerhouse orchestrating multi-camera crew setups, location permits, and seamless shoot execution.",
-      "avatar": "https://ik.imagekit.io/anujjxii/insertix/team-6_Moze-gABz.webp",
+      "name": "Pratyush Rohilla",
+      "role": "Cinemetographer",
+      "bio": "Captures compelling visuals through creative camera work, lighting, and cinematic storytelling.",
+      "avatar": "/uploads/1793127729534-WhatsApp_Image_2026-10-27_at_8_23_19_PM.webp",
       "socials": {
         "linkedin": "https://linkedin.com",
         "instagram": "https://instagram.com"
       },
       "order": 6,
-      "visible": true
+      "visible": true,
+      "focalX": 50,
+      "focalY": 0,
+      "zoom": 1
     }
   ],
   "testimonials": [
@@ -252,7 +266,7 @@
     {
       "id": "test-2",
       "clientName": "Pooja Hegde",
-      "company": "Fabindia Textiles",
+      "company": "Fabindia",
       "role": "Creative Head",
       "content": "The photoshoots exceeded every expectation. Their team captured the delicate textures of our fabrics in stunning natural light, and the collection sold out in four days.",
       "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop",
@@ -281,6 +295,34 @@
       "rating": 5,
       "order": 4,
       "visible": true
+    },
+    {
+      "company": "S cafe",
+      "content": "Insertix Media delivered top-notch visuals and promotional reels for our cafe launch. Truly remarkable work!",
+      "clientName": "",
+      "role": "",
+      "avatar": "",
+      "rating": 5,
+      "order": 5,
+      "visible": true,
+      "focalX": 50,
+      "focalY": 50,
+      "zoom": 1,
+      "id": "test-1793131073053"
+    },
+    {
+      "company": "S cafe",
+      "content": "Insertix Media delivered top-notch visuals and promotional reels for our cafe launch. Truly remarkable work!",
+      "clientName": "",
+      "role": "",
+      "avatar": "",
+      "rating": 5,
+      "order": 6,
+      "visible": true,
+      "focalX": 50,
+      "focalY": 50,
+      "zoom": 1,
+      "id": "test-1793131169633"
     }
   ],
   "contactMessages": [

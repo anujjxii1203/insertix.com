@@ -37,9 +37,42 @@ export async function verifyAdminToken(token: string): Promise<AdminSession | nu
   }
 }
 
-export async function getAdminSession(): Promise<AdminSession | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("insertix_admin_token")?.value;
-  if (!token) return null;
-  return verifyAdminToken(token);
+import { headers } from "next/headers";
+
+export async function getAdminSession(req?: Request): Promise<AdminSession | null> {
+  // 1. Check Authorization header from parameter request if passed
+  if (req) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const session = await verifyAdminToken(token);
+      if (session) return session;
+    }
+  }
+
+  // 2. Check incoming headers() in Next.js Server Components / Route Handlers
+  try {
+    const headersList = await headers();
+    const authHeader = headersList.get("authorization");
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      const token = authHeader.substring(7).trim();
+      const session = await verifyAdminToken(token);
+      if (session) return session;
+    }
+  } catch {
+    // headers() might not be available in non-RSC contexts
+  }
+
+  // 3. Fallback to httpOnly cookie
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("insertix_admin_token")?.value;
+    if (token) {
+      return verifyAdminToken(token);
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }

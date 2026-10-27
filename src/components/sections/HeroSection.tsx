@@ -146,15 +146,15 @@ export default function HeroSection({ initialSettings }: { initialSettings?: ISi
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-12 pt-8 border-t border-[var(--border)] grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 max-w-3xl w-full"
+            className="mt-12 pt-8 border-t border-[var(--border)] max-w-4xl w-full mx-auto flex flex-wrap items-center justify-center gap-6 sm:gap-12 md:gap-20"
           >
             {heroStats.map((stat, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <span className="font-mono font-black text-2xl sm:text-3xl text-[var(--text)]">
+              <div key={idx} className="flex flex-col items-center justify-center text-center min-w-[100px] sm:min-w-[140px]">
+                <span className="font-mono font-black text-2xl sm:text-3xl text-[var(--text)] tracking-tight">
                   {stat.value}
                   {stat.suffix || ""}
                 </span>
-                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)] mt-1">
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)] mt-1 text-center">
                   {stat.label}
                 </span>
               </div>

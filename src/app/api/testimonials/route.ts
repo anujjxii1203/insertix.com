@@ -8,11 +8,11 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const TestimonialSchema = z.object({
-  clientName: z.string().min(2).transform((s) => s.trim()),
-  company: z.string().min(1).transform((s) => s.trim()),
-  role: z.string().min(1).transform((s) => s.trim()),
+  company: z.string().min(1, "Company name is required").transform((s) => s.trim()),
   content: z.string().min(5).max(280, "Quote cannot exceed 280 characters").transform((s) => s.trim()),
-  avatar: z.string().min(1),
+  clientName: z.string().optional().default("").transform((s) => (s ? s.trim() : "")),
+  role: z.string().optional().default("").transform((s) => (s ? s.trim() : "")),
+  avatar: z.string().optional().default(""),
   rating: z.number().min(1).max(5).optional().default(5),
   order: z.number().optional().default(0),
   visible: z.boolean().optional().default(true),
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     const testimonials = await getTestimonials(!isAdmin);
     return NextResponse.json(testimonials, {
       headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
   } catch (error) {
@@ -39,15 +39,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized. Please log in again." }, { status: 401 });
     }
 
     const body = await req.json();
     const parsed = TestimonialSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid testimonial data", details: parsed.error.issues }, { status: 400 });
+      const issueMsgs = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ");
+      console.warn("Testimonial validation failed:", issueMsgs);
+      return NextResponse.json({ error: `Validation error: ${issueMsgs}`, details: parsed.error.issues }, { status: 400 });
     }
 
     const newTestimonial = await createTestimonial({
@@ -63,8 +65,8 @@ export async function POST(req: Request) {
     notifyUpdate("testimonials");
 
     return NextResponse.json(newTestimonial, { status: 201 });
-  } catch (error) {
-    console.error("Error creating testimonial:", error);
-    return NextResponse.json({ error: "Failed to create testimonial" }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error creating testimonial:", error?.message || error);
+    return NextResponse.json({ error: error?.message || "Failed to create testimonial" }, { status: 500 });
   }
 }

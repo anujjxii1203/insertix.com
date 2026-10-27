@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Rounded square background -->
+  <rect width="64" height="64" rx="14" fill="#F5F5F5"/>
+  
+  <!-- 'I' Letter (Bold, Condensed, Black #0A0A0A) -->
+  <!-- Stem from x=12 to x=22, height from y=14 to y=50 -->
+  <rect x="12" y="14" width="10" height="36" rx="1.5" fill="#0A0A0A"/>
+  
+  <!-- 'M' Letter (Bold, Red #D40000) -->
+  <!-- Left stem: x=26 to 34, Right stem: x=44 to 52, Center V: dipping down to y=35 at x=39 -->
+  <path d="M 26 50 L 26 14 L 33.5 14 L 39 31.5 L 44.5 14 L 52 14 L 52 50 L 44 50 L 44 26.5 L 40.5 37.5 L 37.5 37.5 L 34 26.5 L 34 50 Z" fill="#D40000"/>
+</svg>

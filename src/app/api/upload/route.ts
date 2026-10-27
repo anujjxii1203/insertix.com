@@ -4,11 +4,12 @@ import fs from "fs";
 import path from "path";
 import sharp from "sharp";
 
-const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB limit
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB limit
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(req: Request) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -19,10 +20,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Reject files over 8MB
+    // Validate MIME type
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Only JPEG, PNG, and WebP images are allowed." },
+        { status: 400 }
+      );
+    }
+
+    // Reject files over 5MB
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json(
-        { error: "File exceeds 8MB maximum upload limit" },
+        { error: "File exceeds 5MB maximum upload limit" },
         { status: 400 }
       );
     }

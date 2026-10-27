@@ -3,34 +3,22 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
+import AvatarPlaceholder from "@/components/ui/AvatarPlaceholder";
 import { ITeamMember, ISiteSettings } from "@/lib/models";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
 import { normalizeImageUrl } from "@/lib/api";
 import { useLiveEvent } from "@/lib/liveSync";
-import { MEMBERS_DATA } from "@/constants/members";
+import { normalizeInstagramUrl } from "@/lib/instagram";
+import { Users } from "lucide-react";
 
 function TeamAvatar({ member }: { member: ITeamMember }) {
   const [error, setError] = useState(false);
   const resolvedSrc = normalizeImageUrl(member.avatar);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  };
-
   if (error || !resolvedSrc) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface-2)] text-[var(--muted)]">
-        <div className="w-16 h-16 rounded-full bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
-          <span className="text-lg font-mono font-bold text-[#D40000]">
-            {getInitials(member.name)}
-          </span>
-        </div>
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface-2)]">
+        <AvatarPlaceholder size="w-20 h-20" iconClassName="w-10 h-10" />
       </div>
     );
   }
@@ -58,67 +46,38 @@ function TeamAvatar({ member }: { member: ITeamMember }) {
           objectFit: "cover",
           objectPosition: `${focalX}% ${focalY}%`,
         }}
-        className="object-cover object-top filter grayscale group-hover:grayscale-0 transition-all duration-300 ease-out"
+        className="object-cover filter grayscale group-hover:grayscale-0 transition-all duration-300 ease-out"
         onError={() => setError(true)}
       />
     </div>
   );
 }
 
-export default function TeamSection({ initialSettings }: { initialSettings?: ISiteSettings }) {
-  const [team, setTeam] = useState<ITeamMember[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function TeamSection({
+  initialTeam,
+  initialSettings,
+}: {
+  initialTeam?: ITeamMember[];
+  initialSettings?: ISiteSettings;
+}) {
+  const [team, setTeam] = useState<ITeamMember[]>(initialTeam || []);
+  const [loading, setLoading] = useState(!initialTeam || initialTeam.length === 0);
   const [settings, setSettings] = useState<ISiteSettings>(initialSettings || DEFAULT_SITE_SETTINGS);
 
   const loadTeam = () => {
     fetch("/api/team")
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setTeam(data);
-        } else {
-          // Fallback to constants if API empty
-          setTeam(
-            MEMBERS_DATA.map((m, idx) => ({
-              id: `team-static-${idx + 1}`,
-              name: m.name,
-              role: m.role,
-              bio: m.description,
-              avatar: m.image,
-              order: idx + 1,
-              visible: true,
-              instagram: m.instagram,
-              socials: {
-                instagram: m.instagram,
-              },
-              focalX: m.focalX,
-              focalY: m.focalY,
-              zoom: m.zoom,
-            }))
-          );
+        if (Array.isArray(data)) {
+          // Sort by order ascending and filter visible
+          const sorted = data
+            .filter((m) => m.visible !== false)
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          setTeam(sorted);
         }
       })
       .catch((err) => {
         console.error("Failed to load team members:", err);
-        // Fallback to static config
-        setTeam(
-          MEMBERS_DATA.map((m, idx) => ({
-            id: `team-static-${idx + 1}`,
-            name: m.name,
-            role: m.role,
-            bio: m.description,
-            avatar: m.image,
-            order: idx + 1,
-            visible: true,
-            instagram: m.instagram,
-            socials: {
-              instagram: m.instagram,
-            },
-            focalX: m.focalX,
-            focalY: m.focalY,
-            zoom: m.zoom,
-          }))
-        );
       })
       .finally(() => setLoading(false));
   };
@@ -137,16 +96,19 @@ export default function TeamSection({ initialSettings }: { initialSettings?: ISi
   });
 
   useEffect(() => {
-    loadTeam();
+    // If not supplied or empty, load team from API
+    if (!initialTeam || initialTeam.length === 0) {
+      loadTeam();
+    }
 
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
         loadTeam();
       }
-    }, 20000);
+    }, 15000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [initialTeam]);
 
   const heading = settings.sectionHeadings?.members || DEFAULT_SITE_SETTINGS.sectionHeadings.members;
 
@@ -172,35 +134,35 @@ export default function TeamSection({ initialSettings }: { initialSettings?: ISi
           </p>
         </div>
 
-        {/* Team Grid: 4 columns on desktop (1024px+), 2 on tablet (640px - 1023px), 1 on mobile (<640px) */}
+        {/* Team Grid / Skeleton / Empty State */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 lg:gap-8">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
                 className="h-[460px] rounded-[24px] bg-[var(--surface)] animate-pulse border border-[var(--border)]"
               />
             ))}
           </div>
+        ) : team.length === 0 ? (
+          <div className="py-16 text-center flex flex-col items-center justify-center bg-[var(--surface)] border border-[var(--border)] rounded-[24px]">
+            <div className="w-12 h-12 rounded-full bg-[var(--surface-2)] flex items-center justify-center mb-3">
+              <Users className="w-6 h-6 text-[#D40000]" />
+            </div>
+            <h3 className="text-base font-bold text-[var(--text)]">No team members published yet</h3>
+            <p className="text-xs font-mono text-[var(--muted)] mt-1">Check back soon as we update our specialists.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 lg:gap-8 items-stretch">
             {team.map((member) => {
-              // Normalize role text (fixing typo if present)
+              // Normalize role text
               const cleanRole = (member.role || "")
                 .replace(/deginer/gi, "DESIGNER")
                 .toUpperCase();
 
-              // Resolve Instagram URL from member object or config
-              const matchFromConfig = MEMBERS_DATA.find((m) => {
-                const configFirst = m.name.toLowerCase().split(" ")[0];
-                const memberFirst = member.name.toLowerCase().split(" ")[0];
-                return m.name.toLowerCase() === member.name.toLowerCase() || configFirst === memberFirst;
-              });
-
-              const instagramUrl =
-                (member.instagram && member.instagram.trim() !== "" ? member.instagram.trim() : null) ||
-                (member.socials?.instagram && member.socials.instagram.trim() !== "" ? member.socials.instagram.trim() : null) ||
-                (matchFromConfig?.instagram && matchFromConfig.instagram.trim() !== "" ? matchFromConfig.instagram.trim() : null);
+              // Normalize Instagram URL using the member's saved instagram or socials
+              const rawInsta = member.instagram || member.socials?.instagram || "";
+              const instagramUrl = normalizeInstagramUrl(rawInsta);
 
               return (
                 <div
@@ -211,8 +173,8 @@ export default function TeamSection({ initialSettings }: { initialSettings?: ISi
                   <div className="relative w-full aspect-[4/5] overflow-hidden rounded-t-[24px] bg-[#1a1a1a]">
                     <TeamAvatar member={member} />
 
-                    {/* Single circular Instagram button: top-right, 40px, white bg, dark icon, opacity-0 by default on desktop, visible on hover & always visible on mobile */}
-                    {instagramUrl && (
+                    {/* Single circular Instagram button: only rendered if member has an Instagram URL */}
+                    {instagramUrl ? (
                       <div className="absolute top-3 right-3 sm:top-3.5 sm:right-3.5 flex items-center opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-auto">
                         <a
                           href={instagramUrl}
@@ -224,7 +186,7 @@ export default function TeamSection({ initialSettings }: { initialSettings?: ISi
                           <InstagramIcon className="w-4 h-4" />
                         </a>
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Below photo: padding ~24px */}

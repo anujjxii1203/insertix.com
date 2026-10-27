@@ -1,69 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Star, Quote } from "lucide-react";
 import AutoCarousel from "@/components/ui/AutoCarousel";
+import AvatarPlaceholder from "@/components/ui/AvatarPlaceholder";
 import { ITestimonial, ISiteSettings } from "@/lib/models";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
 import { useLiveEvent } from "@/lib/liveSync";
 
-function TestimonialAvatar({ testimonial }: { testimonial: ITestimonial }) {
-  const [error, setError] = useState(false);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .filter(Boolean)
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  };
-
-  if (error || !testimonial.avatar) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-[var(--surface-2)] text-[#D40000] font-mono font-bold text-xs">
-        {getInitials(testimonial.clientName)}
-      </div>
-    );
-  }
-
-  const focalX = testimonial.focalX ?? 50;
-  const focalY = testimonial.focalY ?? 50;
-  const zoom = Math.max(1, testimonial.zoom ?? 1);
-
-  return (
-    <div
-      className="relative w-full h-full overflow-hidden rounded-full"
-      style={{
-        transform: zoom > 1 ? `scale(${zoom})` : "none",
-        transformOrigin: `${focalX}% ${focalY}%`,
-      }}
-    >
-      <Image
-        src={testimonial.avatar}
-        alt={testimonial.clientName}
-        fill
-        sizes="48px"
-        quality={75}
-        style={{
-          objectFit: "cover",
-          objectPosition: `${focalX}% ${focalY}%`,
-        }}
-        onError={() => setError(true)}
-      />
-    </div>
-  );
-}
-
-export default function TestimonialsSection({ initialSettings }: { initialSettings?: ISiteSettings }) {
-  const [testimonials, setTestimonials] = useState<ITestimonial[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function TestimonialsSection({
+  initialSettings,
+  initialTestimonials = [],
+}: {
+  initialSettings?: ISiteSettings;
+  initialTestimonials?: ITestimonial[];
+}) {
+  const [testimonials, setTestimonials] = useState<ITestimonial[]>(initialTestimonials);
+  const [loading, setLoading] = useState(initialTestimonials.length === 0);
   const [settings, setSettings] = useState<ISiteSettings>(initialSettings || DEFAULT_SITE_SETTINGS);
 
   const loadTestimonials = () => {
-    fetch("/api/testimonials")
+    fetch("/api/testimonials?t=" + Date.now())
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
@@ -156,18 +113,13 @@ export default function TestimonialsSection({ initialSettings }: { initialSettin
                 </div>
               </div>
 
-              {/* Author Row */}
-              <div className="flex items-center gap-3.5 border-t border-[var(--border)] pt-4 mt-auto relative z-10">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[var(--border)] bg-[var(--surface-2)] flex-shrink-0">
-                  <TestimonialAvatar testimonial={t} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[var(--text)] group-hover/card:text-[#D40000] transition-colors duration-200">
-                    {t.clientName}
+              {/* Company Row */}
+              <div className="flex items-center gap-3.5 border-t border-[var(--border)] pt-4 mt-auto relative z-10 min-w-0">
+                <AvatarPlaceholder size={58} />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm sm:text-base font-bold text-[var(--text)] group-hover/card:text-[#D40000] transition-colors duration-200 truncate sm:whitespace-normal break-words leading-snug">
+                    {t.company || t.clientName || "Partner"}
                   </h4>
-                  <p className="text-xs font-mono text-[var(--muted)]">
-                    {t.role}, <span className="text-[var(--text)] font-semibold">{t.company}</span>
-                  </p>
                 </div>
               </div>
             </div>

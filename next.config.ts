@@ -84,21 +84,25 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      // Forward /api/* calls (except /api/revalidate) to the Render standalone backend
-      {
-        source: "/api/revalidate",
-        destination: "/api/revalidate",
-      },
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-      {
-        source: "/uploads/:path*",
-        destination: `${backendUrl}/uploads/:path*`,
-      },
-    ];
+    // Only forward /api/ calls if an external backend URL is explicitly configured (e.g. Render).
+    // By default, Next.js internal App Router API routes (/src/app/api/*) handle all requests.
+    if (process.env.NEXT_PUBLIC_API_URL && !backendUrl.includes("localhost") && !backendUrl.includes("127.0.0.1")) {
+      return [
+        {
+          source: "/api/revalidate",
+          destination: "/api/revalidate",
+        },
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl}/api/:path*`,
+        },
+        {
+          source: "/uploads/:path*",
+          destination: `${backendUrl}/uploads/:path*`,
+        },
+      ];
+    }
+    return [];
   },
 };
 

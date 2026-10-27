@@ -3,6 +3,9 @@ import { revalidatePath } from "next/cache";
 import { updateTeamMember, deleteTeamMember } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
 import { notifyUpdate } from "@/lib/events";
+import { normalizeInstagramUrl } from "@/lib/instagram";
+
+export const dynamic = "force-dynamic";
 
 export async function PUT(
   req: Request,
@@ -16,7 +19,17 @@ export async function PUT(
 
     const { id } = await context.params;
     const body = await req.json();
-    const updated = await updateTeamMember(id, body);
+
+    const normalizedBody = { ...body };
+    if ("instagram" in normalizedBody) {
+      normalizedBody.instagram = normalizeInstagramUrl(normalizedBody.instagram);
+      normalizedBody.socials = {
+        ...(normalizedBody.socials || {}),
+        instagram: normalizedBody.instagram,
+      };
+    }
+
+    const updated = await updateTeamMember(id, normalizedBody);
     if (!updated) {
       return NextResponse.json({ error: "Team member not found" }, { status: 404 });
     }
@@ -58,7 +71,7 @@ export async function DELETE(
     }
     notifyUpdate("team");
 
-    return NextResponse.json({ success: true, message: "Team member deleted successfully" });
+    return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error("Error deleting team member:", error);
     return NextResponse.json({ error: "Failed to delete team member" }, { status: 500 });

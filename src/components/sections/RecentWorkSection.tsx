@@ -103,16 +103,22 @@ function getLinkType(url?: string): "video" | "instagram" | "drive" | "other" {
   }
 }
 
-export default function RecentWorkSection({ initialSettings }: { initialSettings?: ISiteSettings }) {
-  const [projects, setProjects] = useState<IProject[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function RecentWorkSection({
+  initialSettings,
+  initialProjects = [],
+}: {
+  initialSettings?: ISiteSettings;
+  initialProjects?: IProject[];
+}) {
+  const [projects, setProjects] = useState<IProject[]>(initialProjects);
+  const [loading, setLoading] = useState(initialProjects.length === 0);
   const [settings, setSettings] = useState<ISiteSettings>(initialSettings || DEFAULT_SITE_SETTINGS);
 
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
   const isDraggingPointer = useRef(false);
 
   const loadProjects = () => {
-    fetch("/api/projects")
+    fetch("/api/projects?t=" + Date.now())
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {

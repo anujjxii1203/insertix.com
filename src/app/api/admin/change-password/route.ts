@@ -6,10 +6,10 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/admin/activity-logs
-export async function GET() {
+// GET /api/admin/activity-logs (legacy fallback)
+export async function GET(req: Request) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -29,7 +29,7 @@ const ChangePasswordSchema = z.object({
 // POST /api/admin/change-password
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

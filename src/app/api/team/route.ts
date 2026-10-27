@@ -3,34 +3,17 @@ import { revalidatePath } from "next/cache";
 import { getTeam, createTeamMember } from "@/lib/db";
 import { getAdminSession } from "@/lib/auth";
 import { notifyUpdate } from "@/lib/events";
+import { normalizeInstagramUrl } from "@/lib/instagram";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
-
-const normalizeInstagram = (val?: string) => {
-  if (!val || typeof val !== "string" || val.trim() === "") return "";
-  const clean = val.trim();
-  if (clean.startsWith("http://") || clean.startsWith("https://")) {
-    try {
-      const u = new URL(clean);
-      if (u.hostname.includes("instagram.com")) {
-        return clean;
-      }
-      return "";
-    } catch {
-      return "";
-    }
-  }
-  const handle = clean.replace(/^@/, "").replace(/[^a-zA-Z0-9._]/g, "");
-  return handle ? `https://www.instagram.com/${handle}` : "";
-};
 
 const TeamMemberSchema = z.object({
   name: z.string().min(2).transform((s) => s.trim()),
   role: z.string().min(2).transform((s) => s.trim()),
   bio: z.string().min(5).transform((s) => s.trim()),
   avatar: z.string().min(1),
-  instagram: z.string().optional().transform(normalizeInstagram),
+  instagram: z.string().optional().transform(normalizeInstagramUrl),
   socials: z
     .object({
       linkedin: z.string().optional(),
@@ -54,7 +37,7 @@ export async function GET(req: Request) {
     const team = await getTeam(!isAdmin);
     return NextResponse.json(team, {
       headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        "Cache-Control": "no-store, max-age=0, must-revalidate",
       },
     });
   } catch (error) {
@@ -65,9 +48,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const session = await getAdminSession();
+    const session = await getAdminSession(req);
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized. Please log in again." }, { status: 401 });
     }
 
     const body = await req.json();

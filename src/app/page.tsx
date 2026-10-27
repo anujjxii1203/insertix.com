@@ -9,37 +9,52 @@ import ContactSection from "@/components/sections/ContactSection";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloating from "@/components/ui/WhatsAppFloating";
 import BackToTop from "@/components/ui/BackToTop";
+import { getTeam, getSiteSettings, getTestimonials, getProjects } from "@/lib/db";
+import { serialize } from "@/lib/serialize";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const [rawTeam, rawSettings, rawTestimonials, rawProjects] = await Promise.all([
+    getTeam(true).catch(() => []),
+    getSiteSettings().catch(() => undefined),
+    getTestimonials(true).catch(() => []),
+    getProjects(true).catch(() => []),
+  ]);
+
+  const initialTeam = serialize(rawTeam);
+  const initialSettings = serialize(rawSettings);
+  const initialTestimonials = serialize(rawTestimonials);
+  const initialProjects = serialize(rawProjects);
+
   return (
     <main className="relative min-h-screen bg-[#FFFFFF] text-[#0A0A0A] selection:bg-[#FDECEC] selection:text-[#D40000]">
-
       {/* Navigation Header */}
       <Navbar />
 
       {/* 1. Hero Section (Insertix Media) */}
-      <HeroSection />
+      <HeroSection initialSettings={initialSettings} />
 
       {/* 2. Work (Services Showcase) */}
-      <ServicesSection />
+      <ServicesSection initialSettings={initialSettings} />
 
       {/* 3. About (Mission, Story, Metric Counters, Brand Logomarks) */}
-      <AboutSection />
+      <AboutSection initialSettings={initialSettings} />
 
       {/* 4. Members (Team Collective) */}
-      <TeamSection />
+      <TeamSection initialTeam={initialTeam} initialSettings={initialSettings} />
 
       {/* 5. Recent Work (Filterable Portfolio Showcase with Modal) */}
-      <RecentWorkSection />
+      <RecentWorkSection initialSettings={initialSettings} initialProjects={initialProjects} />
 
       {/* Bonus: Client Testimonials */}
-      <TestimonialsSection />
+      <TestimonialsSection initialSettings={initialSettings} initialTestimonials={initialTestimonials} />
 
       {/* 6. Contact Us (Inquiry Form + Direct WhatsApp) */}
-      <ContactSection />
+      <ContactSection initialSettings={initialSettings} />
 
       {/* Footer */}
-      <Footer />
+      <Footer initialSettings={initialSettings} />
 
       {/* Center Fixed Back-to-Top Button */}
       <BackToTop />

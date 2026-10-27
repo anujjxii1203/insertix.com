@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminByEmail } from "@/lib/db";
 import { comparePassword, createAdminToken } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const LoginSchema = z.object({
@@ -10,6 +11,17 @@ const LoginSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
+    const clientIp = ip.split(",")[0].trim();
+    // 10 attempts per 15 minutes limit on login
+    const { allowed } = checkRateLimit(`login_${clientIp}`, 10, 15 * 60 * 1000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please wait 15 minutes before trying again." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const parsed = LoginSchema.safeParse(body);
     if (!parsed.success) {
