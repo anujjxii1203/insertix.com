@@ -17,8 +17,14 @@ import {
   SiteSettingsModel,
   ActivityLogModel,
 } from "./models";
-import { DEFAULT_SITE_SETTINGS } from "./defaultSettings";
+import {
+  DEFAULT_SITE_SETTINGS,
+  INITIAL_PROJECTS,
+  INITIAL_TEAM,
+  INITIAL_TESTIMONIALS,
+} from "./defaultSettings";
 import { serialize } from "./serialize";
+
 
 const DB_FILE_PATH = path.join(process.cwd(), "data", "db.json");
 
@@ -159,19 +165,35 @@ export async function connectDB(): Promise<boolean> {
 
 // ================= PROJECTS =================
 export async function getProjects(publicOnly = false): Promise<IProject[]> {
-  const hasMongo = await connectDB();
-  if (hasMongo) {
-    const query = publicOnly ? { visible: { $ne: false } } : {};
-    const docs = await ProjectModel.find(query).sort({ order: 1, createdAt: -1 }).lean();
-    return serialize(docs);
+  try {
+    const hasMongo = await connectDB();
+    if (hasMongo) {
+      const query = publicOnly ? { visible: { $ne: false } } : {};
+      const docs = await ProjectModel.find(query).sort({ order: 1, createdAt: -1 }).lean();
+      if (docs && docs.length > 0) {
+        return serialize(docs);
+      }
+    }
+  } catch {
+    // fallback to in-memory snapshot
   }
-  const db = ensureLocalDB();
-  let list = db.projects;
+
+  if (allowLocalFs()) {
+    const db = ensureLocalDB();
+    let list = db.projects;
+    if (publicOnly) {
+      list = list.filter((p) => p.visible !== false);
+    }
+    return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  let list = INITIAL_PROJECTS;
   if (publicOnly) {
     list = list.filter((p) => p.visible !== false);
   }
   return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
+
 
 export async function getProjectById(id: string): Promise<IProject | null> {
   const hasMongo = await connectDB();
@@ -238,14 +260,29 @@ export async function deleteProject(id: string): Promise<boolean> {
 
 // ================= TEAM =================
 export async function getTeam(publicOnly = false): Promise<ITeamMember[]> {
-  const hasMongo = await connectDB();
-  if (hasMongo) {
-    const query = publicOnly ? { visible: { $ne: false } } : {};
-    const docs = await TeamMemberModel.find(query).sort({ order: 1 }).lean();
-    return serialize(docs);
+  try {
+    const hasMongo = await connectDB();
+    if (hasMongo) {
+      const query = publicOnly ? { visible: { $ne: false } } : {};
+      const docs = await TeamMemberModel.find(query).sort({ order: 1 }).lean();
+      if (docs && docs.length > 0) {
+        return serialize(docs);
+      }
+    }
+  } catch {
+    // fallback
   }
-  const db = ensureLocalDB();
-  let list = db.team;
+
+  if (allowLocalFs()) {
+    const db = ensureLocalDB();
+    let list = db.team;
+    if (publicOnly) {
+      list = list.filter((m) => m.visible !== false);
+    }
+    return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  let list = INITIAL_TEAM;
   if (publicOnly) {
     list = list.filter((m) => m.visible !== false);
   }
@@ -319,19 +356,35 @@ function cleanCompanyField(t: any): any {
 
 // ================= TESTIMONIALS =================
 export async function getTestimonials(publicOnly = false): Promise<ITestimonial[]> {
-  const hasMongo = await connectDB();
-  if (hasMongo) {
-    const query = publicOnly ? { visible: { $ne: false } } : {};
-    const docs = await TestimonialModel.find(query).sort({ order: 1 }).lean();
-    return serialize(docs.map(cleanCompanyField));
+  try {
+    const hasMongo = await connectDB();
+    if (hasMongo) {
+      const query = publicOnly ? { visible: { $ne: false } } : {};
+      const docs = await TestimonialModel.find(query).sort({ order: 1 }).lean();
+      if (docs && docs.length > 0) {
+        return serialize(docs.map(cleanCompanyField));
+      }
+    }
+  } catch {
+    // fallback
   }
-  const db = ensureLocalDB();
-  let list = db.testimonials;
+
+  if (allowLocalFs()) {
+    const db = ensureLocalDB();
+    let list = db.testimonials;
+    if (publicOnly) {
+      list = list.filter((t) => t.visible !== false);
+    }
+    return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(cleanCompanyField);
+  }
+
+  let list = INITIAL_TESTIMONIALS;
   if (publicOnly) {
     list = list.filter((t) => t.visible !== false);
   }
   return list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map(cleanCompanyField);
 }
+
 
 export async function createTestimonial(testimonial: ITestimonial): Promise<ITestimonial> {
   const hasMongo = await connectDB();
