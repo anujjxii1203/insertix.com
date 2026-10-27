@@ -25,7 +25,8 @@ const ContactSchema = z.object({
 export async function POST(req: Request) {
   try {
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
-    const { allowed } = checkRateLimit(ip.split(",")[0].trim(), 5, 10 * 60 * 1000);
+    const { allowed } = await checkRateLimit(ip.split(",")[0].trim(), 5, 10 * 60 * 1000);
+
 
     if (!allowed) {
       return NextResponse.json(

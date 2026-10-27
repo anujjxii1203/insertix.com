@@ -8,8 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "tsx src/scripts/seed.ts",
+    "seed:dry-run": "tsx --env-file=.env.local scripts/seed-from-db-json.ts",
+    "seed:from-json": "tsx --env-file=.env.local scripts/seed-from-db-json.ts --execute",
+    "check:no-fs": "node scripts/check-no-fs.js",
     "cleanup": "tsx src/scripts/cleanup.ts",
     "optimize-images": "node src/scripts/optimize-images.mjs"
+
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

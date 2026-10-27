@@ -622,11 +622,14 @@ export default function AdminDashboardPage() {
           .then((r) => r.ok && r.json())
           .then((logs) => Array.isArray(logs) && setActivityLogs(logs));
       } else {
-        const err = await res.json();
-        alert(err.error || "Failed to save settings");
+        const err = await res.json().catch(() => ({}));
+        const detailsMsg = err.details && Array.isArray(err.details)
+          ? "\n" + err.details.map((d: any) => `${d.path?.join(".")}: ${d.message}`).join("\n")
+          : "";
+        alert(`Error saving settings: ${err.error || res.statusText || res.status}${detailsMsg}`);
       }
-    } catch {
-      alert("Network error saving settings");
+    } catch (err: any) {
+      alert(`Network error saving settings: ${err?.message || err}`);
     } finally {
       setSavingSettings(false);
     }

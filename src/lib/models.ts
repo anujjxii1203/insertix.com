@@ -381,9 +381,27 @@ const ActivityLogSchema = new Schema<IActivityLog>({
   timestamp: { type: String, default: () => new Date().toISOString() },
 });
 
+export interface IRateLimit {
+  key: string;
+  count: number;
+  resetTime: number;
+  expiresAt: Date;
+}
+
+const RateLimitSchema = new Schema<IRateLimit>({
+  key: { type: String, required: true, unique: true },
+  count: { type: Number, required: true, default: 1 },
+  resetTime: { type: Number, required: true },
+  expiresAt: { type: Date, required: true, index: { expires: 0 } },
+});
+
 export const SiteSettingsModel =
   mongoose.models.SiteSettings || mongoose.model<ISiteSettings>("SiteSettings", SiteSettingsSchema);
 
 export const ActivityLogModel =
   mongoose.models.ActivityLog || mongoose.model<IActivityLog>("ActivityLog", ActivityLogSchema);
+
+export const RateLimitModel =
+  mongoose.models.RateLimit || mongoose.model<IRateLimit>("RateLimit", RateLimitSchema);
+
 
