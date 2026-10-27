@@ -199,6 +199,25 @@
   will-change: transform;
 }
 
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeLeft var(--marquee-duration, 35s) linear infinite;
+  will-change: transform;
+}
+
+.marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* Pause on hover if user hovers track */
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+
 /* Below-the-fold content visibility for faster rendering and TBT reduction */
 .content-auto {
   content-visibility: auto;
@@ -223,10 +242,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee-left,
+  .marquee-track,
   .whatsapp-pulse {
     animation: none !important;
   }
 }
+
 
 /* Scoped Admin Theme */
 .admin-theme,

@@ -33,7 +33,17 @@ export default function HeroSection({ initialSettings }: { initialSettings?: ISi
   const heroStats = (settings.heroStats || DEFAULT_SITE_SETTINGS.heroStats).filter(
     (s) => s.visible !== false
   );
+
+  // Read services dynamically from Site Settings, fallback to MARQUEE_SERVICES
+  const serviceItems =
+    settings.services && settings.services.length > 0
+      ? settings.services
+          .filter((s) => s.visible !== false)
+          .map((s) => s.title.toUpperCase())
+      : MARQUEE_SERVICES;
+
   const waUrl = getWhatsAppUrl();
+
 
   const handleScrollToWork = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -164,18 +174,36 @@ export default function HeroSection({ initialSettings }: { initialSettings?: ISi
       </div>
 
       {/* Marquee Strip */}
-      <div className="relative z-10 w-full mt-12 py-4 border-y border-[var(--border)] bg-[var(--bg-alt)] overflow-hidden">
-        <div className="animate-marquee-left whitespace-nowrap flex items-center gap-10 font-mono text-xs font-semibold tracking-[0.2em] text-[var(--muted)]">
-          {[...MARQUEE_SERVICES, ...MARQUEE_SERVICES].map((item, idx) => (
-            <div key={idx} className="flex items-center gap-8">
-              <span className="hover:text-[var(--text)] transition-colors cursor-default">
-                {item}
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D40000] flex-shrink-0" />
+      {serviceItems.length > 0 && (
+        <div className="relative z-10 w-full mt-12 py-4 border-y border-[var(--border)] bg-[var(--bg-alt)] overflow-hidden">
+          <div className="marquee-track">
+            {/* Primary Group */}
+            <div className="marquee-group">
+              {Array.from({ length: 4 }).flatMap(() => serviceItems).map((item, idx) => (
+                <div key={idx} className="flex items-center">
+                  <span className="font-mono text-xs font-semibold tracking-[0.2em] text-[var(--muted)] hover:text-[var(--text)] transition-colors cursor-default whitespace-nowrap">
+                    {item}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D40000] flex-shrink-0 mx-8" />
+                </div>
+              ))}
             </div>
-          ))}
+
+            {/* Duplicate Group for Seamless -50% Loop */}
+            <div className="marquee-group" aria-hidden="true">
+              {Array.from({ length: 4 }).flatMap(() => serviceItems).map((item, idx) => (
+                <div key={idx} className="flex items-center">
+                  <span className="font-mono text-xs font-semibold tracking-[0.2em] text-[var(--muted)] hover:text-[var(--text)] transition-colors cursor-default whitespace-nowrap">
+                    {item}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D40000] flex-shrink-0 mx-8" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </section>
+
   );
 }
