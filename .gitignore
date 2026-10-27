@@ -47,6 +47,7 @@ yarn-error.log*
 *.bson
 dump/
 *.dump
+*.backup.json
 
 # OS and Editor metadata
 .DS_Store
