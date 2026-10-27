@@ -6,6 +6,11 @@ export function normalizeInstagramUrl(val?: string): string {
     try {
       const u = new URL(clean);
       if (u.hostname.includes("instagram.com")) {
+        const path = u.pathname.replace(/^\/+|\/+$/g, "");
+        // If it's just "instagram.com" or "instagram.com/" with no username, ignore
+        if (!path || path === "" || path.toLowerCase() === "p") {
+          return "";
+        }
         return clean;
       }
       return "";

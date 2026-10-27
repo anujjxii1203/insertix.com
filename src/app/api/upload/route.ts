@@ -50,11 +50,16 @@ export async function POST(req: Request) {
     const safeName = `${Date.now()}-${cleanBaseName}.webp`;
     const filePath = path.join(uploadsDir, safeName);
 
-    // Auto-resize and compress every uploaded image with sharp (WebP, max width 1600, quality 78)
+    // Auto-resize and compress every uploaded image with sharp (WebP, max dimension 1600 on longest side, quality 78, stripped metadata)
     await sharp(buffer)
       .rotate() // Respect EXIF orientation
-      .resize({ width: 1600, withoutEnlargement: true })
-      .webp({ quality: 78, effort: 6 })
+      .resize({
+        width: 1600,
+        height: 1600,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 78, effort: 6, force: true })
       .toFile(filePath);
 
     return NextResponse.json({

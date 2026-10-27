@@ -6,14 +6,15 @@ import { InstagramIcon } from "@/components/ui/SocialIcons";
 import AvatarPlaceholder from "@/components/ui/AvatarPlaceholder";
 import { ITeamMember, ISiteSettings } from "@/lib/models";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
-import { normalizeImageUrl } from "@/lib/api";
 import { useLiveEvent } from "@/lib/liveSync";
 import { normalizeInstagramUrl } from "@/lib/instagram";
 import { Users } from "lucide-react";
+import { normalizeImageUrl, getOptimizedImageUrl } from "@/lib/image";
 
-function TeamAvatar({ member }: { member: ITeamMember }) {
+function TeamAvatar({ member, priority = false }: { member: ITeamMember; priority?: boolean }) {
   const [error, setError] = useState(false);
-  const resolvedSrc = normalizeImageUrl(member.avatar);
+  const rawSrc = member.avatar || (member as any).image;
+  const resolvedSrc = getOptimizedImageUrl(normalizeImageUrl(rawSrc), { width: 640, quality: 75, focus: "face" });
 
   if (error || !resolvedSrc) {
     return (
@@ -40,14 +41,20 @@ function TeamAvatar({ member }: { member: ITeamMember }) {
         src={resolvedSrc}
         alt={member.name}
         fill
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-        quality={80}
+        priority={priority}
+        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw"
+        quality={75}
         style={{
           objectFit: "cover",
           objectPosition: `${focalX}% ${focalY}%`,
         }}
         className="object-cover filter grayscale group-hover:grayscale-0 transition-all duration-300 ease-out"
-        onError={() => setError(true)}
+        onError={() => {
+          if (process.env.NODE_ENV !== "production") {
+            console.error(`Failed to load photo for ${member.name}:`, resolvedSrc);
+          }
+          setError(true);
+        }}
       />
     </div>
   );
@@ -154,7 +161,7 @@ export default function TeamSection({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 lg:gap-8 items-stretch">
-            {team.map((member) => {
+            {team.map((member, idx) => {
               // Normalize role text
               const cleanRole = (member.role || "")
                 .replace(/deginer/gi, "DESIGNER")
@@ -171,7 +178,7 @@ export default function TeamSection({
                 >
                   {/* Photo Container: aspect-[4/5] with rounded top corners */}
                   <div className="relative w-full aspect-[4/5] overflow-hidden rounded-t-[24px] bg-[#1a1a1a]">
-                    <TeamAvatar member={member} />
+                    <TeamAvatar member={member} priority={idx < 4} />
 
                     {/* Single circular Instagram button: only rendered if member has an Instagram URL */}
                     {instagramUrl ? (

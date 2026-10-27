@@ -108,6 +108,20 @@ export async function connectDB(): Promise<boolean> {
       });
       isMongoConnected = true;
       global._mongooseConnected = true;
+
+      // Log database name and cluster info at startup
+      const maskedHost = (mongoose.connection.host || "").replace(/shard.*$/, "cluster");
+      console.log(`[DB INFO] Connected to MongoDB Atlas: ${maskedHost} / db: "${mongoose.connection.name}"`);
+
+      // Dev-only warning if database has 0 projects or members
+      if (process.env.NODE_ENV !== "production") {
+        ProjectModel.countDocuments().then((count) => {
+          if (count === 0) {
+            console.warn(`⚠️ [DEV WARNING] Connected MongoDB database "${mongoose.connection.name}" has 0 projects.`);
+          }
+        }).catch(() => {});
+      }
+
       return true;
     } catch (err) {
       mongoose.set("bufferCommands", false);

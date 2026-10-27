@@ -152,6 +152,7 @@ const jsonLd = {
 };
 
 import ScrollProgress from "@/components/ui/ScrollProgress";
+import Script from "next/script";
 
 export default function RootLayout({
   children,
@@ -165,17 +166,21 @@ export default function RootLayout({
       className={`${inter.variable} ${playfair.variable} ${greatVibes.variable} h-full antialiased`}
     >
       <head>
-        <script
+        <link rel="preconnect" href="https://ik.imagekit.io" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://ik.imagekit.io" />
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("theme");if(t==="dark"||t==="light"){document.documentElement.setAttribute("data-theme",t);}else if(window.matchMedia("(prefers-color-scheme: dark)").matches){document.documentElement.setAttribute("data-theme","dark");}else{document.documentElement.setAttribute("data-theme","light");}}catch(e){}})();`,
           }}
         />
+      </head>
+      <body className="min-h-full flex flex-col bg-[#FFFFFF] text-[#0A0A0A] overflow-x-clip">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-      </head>
-      <body className="min-h-full flex flex-col bg-[#FFFFFF] text-[#0A0A0A] overflow-x-clip">
         {/* Page Top Scroll Progress (2px var(--grad) via transform scaleX) */}
         <ScrollProgress />
 

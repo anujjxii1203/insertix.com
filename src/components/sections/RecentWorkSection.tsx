@@ -7,8 +7,8 @@ import AutoCarousel from "@/components/ui/AutoCarousel";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
 import { IProject, ISiteSettings } from "@/lib/models";
 import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
-import { normalizeImageUrl } from "@/lib/api";
 import { useLiveEvent } from "@/lib/liveSync";
+import { normalizeImageUrl, getOptimizedImageUrl } from "@/lib/image";
 
 function ImageWithFallback({
   src,
@@ -34,11 +34,10 @@ function ImageWithFallback({
   zoom?: number;
 }) {
   const [error, setError] = useState(false);
-  const resolvedSrc = normalizeImageUrl(src);
+  const normalized = normalizeImageUrl(src);
+  const resolvedSrc = getOptimizedImageUrl(normalized, { width: 720, quality: 75 });
 
-  const isBrokenRelative = !resolvedSrc || (resolvedSrc.startsWith("/uploads/") && !resolvedSrc.startsWith("http"));
-
-  if (error || isBrokenRelative) {
+  if (error || !resolvedSrc) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface-2)] text-[var(--muted)] p-6 text-center select-none relative overflow-hidden">
         <div className="w-12 h-12 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-xs flex items-center justify-center mb-2.5">
