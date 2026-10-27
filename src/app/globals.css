@@ -31,6 +31,7 @@
     --grad: linear-gradient(90deg, #FF5A4D 0%, #D40000 50%, #7A0000 100%);
     --grad-diag: linear-gradient(135deg, #FF5A4D 0%, #D40000 55%, #7A0000 100%);
     --grad-soft: linear-gradient(135deg, #FFD6D0 0%, #FDECEC 60%, #FFFFFF 100%);
+    --marquee-duration: 60s;
   }
 
   [data-theme="dark"] {
@@ -202,7 +203,7 @@
 .marquee-track {
   display: flex;
   width: max-content;
-  animation: marqueeLeft var(--marquee-duration, 35s) linear infinite;
+  animation: marqueeLeft var(--marquee-duration, 60s) linear infinite;
   will-change: transform;
 }
 
@@ -210,11 +211,6 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-}
-
-/* Pause on hover if user hovers track */
-.marquee-track:hover {
-  animation-play-state: paused;
 }
 
 
