@@ -452,22 +452,22 @@
       "counters": [
         {
           "label": "Projects Delivered",
-          "number": 140,
+          "number": 10,
           "suffix": "+"
         },
         {
           "label": "Happy Clients",
-          "number": 65,
-          "suffix": "+"
-        },
-        {
-          "label": "Years of Excellence",
           "number": 6,
           "suffix": "+"
         },
         {
+          "label": "Years of Excellence",
+          "number": 1,
+          "suffix": "+"
+        },
+        {
           "label": "Core Specialists",
-          "number": 18,
+          "number": 5,
           "suffix": ""
         }
       ]
@@ -477,44 +477,39 @@
       "visible": true,
       "brands": [
         {
-          "name": "ZOMATO DINING",
+          "name": "ARUNIMA COUTURE",
           "visible": true,
           "order": 0
         },
         {
-          "name": "TATA MOTORS",
+          "name": "TWO HEARTS CAFE",
           "visible": true,
           "order": 1
         },
         {
-          "name": "FABINDIA",
+          "name": "NO SHIT",
           "visible": true,
           "order": 2
         },
         {
-          "name": "CRED",
+          "name": "XARTECH",
           "visible": true,
           "order": 3
         },
         {
-          "name": "BOAT LIFESTYLE",
+          "name": "IN HOUSE CAFE",
           "visible": true,
           "order": 4
         },
         {
-          "name": "FOREST ESSENTIALS",
+          "name": "BEATBAND",
           "visible": true,
           "order": 5
         },
         {
-          "name": "PERCEPT LIVE",
+          "name": "GANGA FARMS",
           "visible": true,
           "order": 6
-        },
-        {
-          "name": "CHAAYOS",
-          "visible": true,
-          "order": 7
         }
       ]
     },
