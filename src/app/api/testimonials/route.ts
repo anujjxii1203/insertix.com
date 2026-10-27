@@ -8,14 +8,17 @@ import { z } from "zod";
 export const dynamic = "force-dynamic";
 
 const TestimonialSchema = z.object({
-  clientName: z.string().min(2),
-  company: z.string().min(2),
-  role: z.string().min(2),
-  content: z.string().min(10),
+  clientName: z.string().min(2).transform((s) => s.trim()),
+  company: z.string().min(1).transform((s) => s.trim()),
+  role: z.string().min(1).transform((s) => s.trim()),
+  content: z.string().min(5).max(280, "Quote cannot exceed 280 characters").transform((s) => s.trim()),
   avatar: z.string().min(1),
   rating: z.number().min(1).max(5).optional().default(5),
   order: z.number().optional().default(0),
   visible: z.boolean().optional().default(true),
+  focalX: z.number().min(0).max(100).optional().default(50),
+  focalY: z.number().min(0).max(100).optional().default(50),
+  zoom: z.number().min(1).max(5).optional().default(1),
 });
 
 export async function GET(req: Request) {

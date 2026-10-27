@@ -5,9 +5,10 @@ import Image from "next/image";
 import { ArrowUpRight, Sparkles, Play, Folder } from "lucide-react";
 import AutoCarousel from "@/components/ui/AutoCarousel";
 import { InstagramIcon } from "@/components/ui/SocialIcons";
-import { IProject } from "@/lib/models";
-
+import { IProject, ISiteSettings } from "@/lib/models";
+import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
 import { normalizeImageUrl } from "@/lib/api";
+import { useLiveEvent } from "@/lib/liveSync";
 
 function ImageWithFallback({
   src,
@@ -17,6 +18,9 @@ function ImageWithFallback({
   fill,
   sizes,
   className,
+  focalX = 50,
+  focalY = 50,
+  zoom = 1,
 }: {
   src: string;
   alt: string;
@@ -25,20 +29,22 @@ function ImageWithFallback({
   fill?: boolean;
   sizes?: string;
   className?: string;
+  focalX?: number;
+  focalY?: number;
+  zoom?: number;
 }) {
   const [error, setError] = useState(false);
   const resolvedSrc = normalizeImageUrl(src);
 
-  // Safety net: if image is still a relative /uploads path (e.g. backend URL not set), never pass to next/image
   const isBrokenRelative = !resolvedSrc || (resolvedSrc.startsWith("/uploads/") && !resolvedSrc.startsWith("http"));
 
   if (error || isBrokenRelative) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#FAF9F7] via-[#F3F1EC] to-[#EAE6DF] text-[#6B6B6B] p-6 text-center select-none relative overflow-hidden">
-        <div className="w-12 h-12 rounded-2xl bg-white/80 border border-[rgba(10,10,10,0.06)] shadow-xs flex items-center justify-center mb-2.5">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface-2)] text-[var(--muted)] p-6 text-center select-none relative overflow-hidden">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-xs flex items-center justify-center mb-2.5">
           <Folder className="w-6 h-6 text-[#D40000]/70" />
         </div>
-        <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#0A0A0A] line-clamp-1 max-w-[85%]">
+        <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[var(--text)] line-clamp-1 max-w-[85%]">
           {fallbackTitle}
         </span>
         {category && (
@@ -50,15 +56,30 @@ function ImageWithFallback({
     );
   }
 
+  const effectiveZoom = Math.max(1, zoom || 1);
+
   return (
-    <Image
-      src={resolvedSrc}
-      alt={alt}
-      fill={fill}
-      sizes={sizes}
-      className={className}
-      onError={() => setError(true)}
-    />
+    <div
+      className="relative w-full h-full overflow-hidden"
+      style={{
+        transform: effectiveZoom > 1 ? `scale(${effectiveZoom})` : "none",
+        transformOrigin: `${focalX}% ${focalY}%`,
+      }}
+    >
+      <Image
+        src={resolvedSrc}
+        alt={alt}
+        fill={fill}
+        sizes={sizes}
+        quality={75}
+        style={{
+          objectFit: "cover",
+          objectPosition: `${focalX}% ${focalY}%`,
+        }}
+        className={className}
+        onError={() => setError(true)}
+      />
+    </div>
   );
 }
 
@@ -82,18 +103,17 @@ function getLinkType(url?: string): "video" | "instagram" | "drive" | "other" {
   }
 }
 
-
-export default function RecentWorkSection() {
+export default function RecentWorkSection({ initialSettings }: { initialSettings?: ISiteSettings }) {
   const [projects, setProjects] = useState<IProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<ISiteSettings>(initialSettings || DEFAULT_SITE_SETTINGS);
 
-  // Pointer drag tracking to avoid triggering links on swipe/drag
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
   const isDraggingPointer = useRef(false);
 
   const loadProjects = () => {
     fetch("/api/projects")
-      .then((res) => res.json())
+      .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
           setProjects(data);
@@ -103,37 +123,32 @@ export default function RecentWorkSection() {
       .finally(() => setLoading(false));
   };
 
+  useLiveEvent("projects-updated", () => {
+    loadProjects();
+  });
+
+  useLiveEvent("settings-updated", () => {
+    fetch("/api/settings")
+      .then((r) => r.ok && r.json())
+      .then((fresh) => {
+        if (fresh && fresh.sectionHeadings) setSettings(fresh);
+      })
+      .catch(() => {});
+  });
+
   useEffect(() => {
     loadProjects();
 
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource("/api/events");
-      es.onmessage = (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          if (data.type === "projects-updated") {
-            loadProjects();
-          }
-        } catch {
-          // ignore
-        }
-      };
-    } catch {
-      // ignore
-    }
-
     const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
         loadProjects();
       }
     }, 20000);
 
-    return () => {
-      if (es) es.close();
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
+
+  const heading = settings.sectionHeadings?.recentWork || DEFAULT_SITE_SETTINGS.sectionHeadings.recentWork;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     pointerDownPos.current = { x: e.clientX, y: e.clientY };
@@ -159,18 +174,26 @@ export default function RecentWorkSection() {
   };
 
   return (
-    <section id="recent-work" className="relative py-16 sm:py-24 bg-[#FFFFFF] border-t border-[rgba(10,10,10,0.08)] overflow-hidden content-auto">
+    <section id="recent-work" className="relative py-16 sm:py-24 bg-[var(--bg)] border-t border-[var(--border)] overflow-hidden content-auto">
       <div className="max-w-[1280px] mx-auto px-6 md:px-12 mb-12 sm:mb-16">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
           <div>
-            <div className="brand-pill mb-4 text-[#0A0A0A]">
+            <div className="brand-pill mb-4 text-[var(--text)]">
               <span>04 — Case Studies</span>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-[#0A0A0A]">
-              Recent <span className="font-serif italic font-normal tracking-normal text-[#D40000] lowercase first-letter:uppercase">Work</span>
+            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tight text-[var(--text)]">
+              {heading.title || "Recent"}{" "}
+              <span className="font-serif italic font-normal tracking-normal text-[#D40000] lowercase first-letter:uppercase">
+                {heading.accentWord || "Work"}
+              </span>
             </h2>
           </div>
+          {heading.subtext && (
+            <p className="text-[var(--muted)] text-sm sm:text-base max-w-md">
+              {heading.subtext}
+            </p>
+          )}
         </div>
       </div>
 
@@ -178,26 +201,24 @@ export default function RecentWorkSection() {
       {loading ? (
         <div className="flex gap-6 px-6 max-w-[1280px] mx-auto overflow-hidden">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="w-[520px] max-w-[85vw] h-[480px] rounded-[24px] bg-white animate-pulse border border-[rgba(10,10,10,0.08)] flex-shrink-0" />
+            <div key={i} className="w-[520px] max-w-[85vw] h-[480px] rounded-[24px] bg-[var(--surface)] animate-pulse border border-[var(--border)] flex-shrink-0" />
           ))}
         </div>
       ) : (
-        <AutoCarousel
-          speed={55}
-          cardWidth="w-[520px] max-w-[85vw]"
-        >
+        <AutoCarousel speed={55} cardWidth="w-[520px] max-w-[85vw]">
           {projects.map((project) => {
-            const hasLink = Boolean(project.link && project.link.trim() !== "");
-            const linkType = getLinkType(project.link);
+            const targetUrl = (project as any).instagram || project.link;
+            const hasLink = Boolean(targetUrl && targetUrl.trim() !== "");
+            const linkType = getLinkType(targetUrl);
 
             const cardContent = (
               <div
-                className={`brand-card card-glow overflow-hidden h-[460px] flex flex-col justify-between group/card select-none bg-white border border-[rgba(10,10,10,0.08)] rounded-[24px] relative isolate ${
+                className={`brand-card card-glow overflow-hidden h-[460px] flex flex-col justify-between group/card select-none bg-[var(--surface)] border border-[var(--border)] rounded-[24px] relative isolate ${
                   hasLink ? "cursor-pointer" : "cursor-default"
                 }`}
               >
                 {/* Media Container with Fixed 4:3 Aspect Ratio */}
-                <div className="relative z-[1] w-full aspect-[4/3] overflow-hidden bg-[#F5F4F2]">
+                <div className="relative z-[1] w-full aspect-[4/3] overflow-hidden bg-[var(--surface-2)]">
                   <ImageWithFallback
                     src={project.coverImage}
                     alt={project.title}
@@ -205,12 +226,15 @@ export default function RecentWorkSection() {
                     category={project.category}
                     fill
                     sizes="(max-width: 640px) 85vw, 520px"
+                    focalX={project.focalX ?? 50}
+                    focalY={project.focalY ?? 50}
+                    zoom={project.zoom ?? 1}
                     className={`object-cover transition-transform duration-500 ease-out ${
                       hasLink ? "group-hover/card:scale-[1.03]" : ""
                     }`}
                   />
 
-                  {/* Viewfinder corner brackets on hover for this card only */}
+                  {/* Viewfinder corner brackets on hover */}
                   {hasLink && (
                     <div className="absolute inset-3 pointer-events-none opacity-0 group-hover/card:opacity-100 transition-opacity duration-200">
                       <span className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#D40000]" />
@@ -221,8 +245,8 @@ export default function RecentWorkSection() {
                   )}
 
                   {/* Badges Overlay */}
-                  <div className="absolute top-3 left-3 flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-white/95 text-[#0A0A0A] border border-[rgba(10,10,10,0.08)] shadow-xs">
+                  <div className="absolute top-3 left-3 flex items-center gap-2 pointer-events-none">
+                    <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[var(--surface)] text-[var(--text)] border border-[var(--border)] shadow-xs">
                       {project.category}
                     </span>
                     {project.metrics && (
@@ -233,9 +257,17 @@ export default function RecentWorkSection() {
                     )}
                   </div>
 
-                  {/* Circular Button matching link type (only if project has link) */}
+                  {/* Circular Button matching link type */}
                   {hasLink && (
-                    <div className="absolute bottom-3 right-3 w-10 h-10 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center group-hover/card:bg-[#D40000] group-hover/card:text-white transition-all duration-200 shadow-md">
+                    <a
+                      href={targetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Open on Instagram"
+                      className="absolute bottom-3 right-3 z-20 w-10 h-10 rounded-full bg-white text-[#0A0A0A] flex items-center justify-center group-hover/card:bg-[#D40000] group-hover/card:text-white transition-all duration-200 shadow-md cursor-pointer pointer-events-auto"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {linkType === "video" ? (
                         <Play className="w-4 h-4 fill-currentColor translate-x-0.5" />
                       ) : linkType === "instagram" ? (
@@ -245,46 +277,42 @@ export default function RecentWorkSection() {
                       ) : (
                         <ArrowUpRight className="w-5 h-5 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-0.5 transition-transform duration-200" />
                       )}
-                    </div>
+                    </a>
                   )}
                 </div>
 
-                {/* Slim Content Area */}
+                {/* Content Area */}
                 <div className="p-5 flex-1 flex flex-col justify-center relative z-[1]">
-                  <div className="flex items-center justify-between text-xs font-mono text-[#6B6B6B] mb-1">
+                  <div className="flex items-center justify-between text-xs font-mono text-[var(--muted)] mb-1">
                     <span className="truncate max-w-[70%]">{project.client}</span>
                     <span>{project.year}</span>
                   </div>
-                  <h3 className={`text-lg font-bold text-[#0A0A0A] truncate ${
-                    hasLink ? "group-hover/card:text-[#D40000] transition-colors duration-200" : ""
-                  }`}>
+                  <h3
+                    className={`text-lg font-bold text-[var(--text)] truncate ${
+                      hasLink ? "group-hover/card:text-[#D40000] transition-colors duration-200" : ""
+                    }`}
+                  >
                     {project.title}
                   </h3>
                 </div>
               </div>
             );
 
-            if (hasLink) {
-              return (
-                <a
-                  key={project.id}
-                  href={project.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`Open ${project.title}`}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onClickCapture={handleClickCapture}
-                  className="block w-full h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D40000] rounded-[24px]"
-                >
-                  {cardContent}
-                </a>
-              );
-            }
-
             return (
-              <div key={project.id} className="w-full h-full">
+              <div key={project.id} className="w-full h-full relative">
                 {cardContent}
+                {hasLink && (
+                  <a
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open ${project.title}`}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onClickCapture={handleClickCapture}
+                    className="absolute inset-0 z-10 rounded-[24px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D40000]"
+                  />
+                )}
               </div>
             );
           })}
@@ -293,4 +321,3 @@ export default function RecentWorkSection() {
     </section>
   );
 }
-

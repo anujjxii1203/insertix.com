@@ -1,3 +1,7 @@
+// IMPORTANT: dotenv MUST be the very first import so that process.env is
+// populated before any module (auth.ts etc.) reads it at load time.
+import "dotenv/config";
+
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -6,12 +10,10 @@ import cookieParser from "cookie-parser";
 import mongoSanitize from "express-mongo-sanitize";
 import hpp from "hpp";
 import path from "path";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 import { connectDB } from "./config/db";
 import { globalLimiter } from "./middleware/rateLimit";
+
 
 import authRoutes from "./routes/auth";
 import projectRoutes from "./routes/projects";
@@ -21,6 +23,7 @@ import adminRoutes from "./routes/admin";
 import contactRoutes from "./routes/contact";
 import eventRoutes from "./routes/events";
 import uploadRoutes from "./routes/upload";
+import settingsRoutes from "./routes/settings";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -46,6 +49,8 @@ app.use(compression());
 const allowedOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "https://insertixmedia.com",
+  "https://www.insertixmedia.com",
 ];
 if (process.env.FRONTEND_URL) {
   process.env.FRONTEND_URL.split(",").forEach((url) => {
@@ -71,7 +76,7 @@ app.use(
       return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-revalidate-secret"],
   })
 );
@@ -105,6 +110,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Central Error Handler (never leaks stack traces in production)
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

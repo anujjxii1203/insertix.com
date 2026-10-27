@@ -8,6 +8,7 @@ import TestimonialsSection from "@/components/sections/TestimonialsSection";
 import ContactSection from "@/components/sections/ContactSection";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloating from "@/components/ui/WhatsAppFloating";
+import BackToTop from "@/components/ui/BackToTop";
 
 export default function Home() {
   return (
@@ -39,6 +40,9 @@ export default function Home() {
 
       {/* Footer */}
       <Footer />
+
+      {/* Center Fixed Back-to-Top Button */}
+      <BackToTop />
 
       {/* Floating Action Button */}
       <WhatsAppFloating />

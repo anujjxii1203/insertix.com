@@ -30,6 +30,10 @@ const ProjectCreateSchema = z.object({
   year: z.string().min(4),
   order: z.number().optional().default(0),
   visible: z.boolean().optional().default(true),
+  focalX: z.number().min(0).max(100).optional().default(50),
+  focalY: z.number().min(0).max(100).optional().default(50),
+  zoom: z.number().min(1).max(5).optional().default(1),
+  aspectRatio: z.string().optional().default("4:3"),
 });
 
 // GET /api/projects
@@ -83,29 +87,37 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     });
 
     notifyUpdate("projects");
-    triggerFrontendRevalidation(["projects"]);
+    const reval = await triggerFrontendRevalidation(["projects"]);
 
-    return res.status(201).json(newProject);
+    return res.status(201).json({
+      ...newProject,
+      _revalidation: reval,
+    });
   } catch (error) {
     console.error("Error creating project:", error);
     return res.status(500).json({ error: "Failed to create project" });
   }
 });
 
-// PATCH /api/projects/:id
-router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
+// PUT & PATCH /api/projects/:id
+const handleUpdateProject = async (req: Request, res: Response) => {
   try {
     const updated = await updateProject(req.params.id, req.body);
     if (!updated) return res.status(404).json({ error: "Project not found" });
 
     notifyUpdate("projects");
-    triggerFrontendRevalidation(["projects"]);
+    const reval = await triggerFrontendRevalidation(["projects"]);
 
-    return res.json(updated);
+    return res.json({
+      ...updated,
+      _revalidation: reval,
+    });
   } catch (error) {
     return res.status(500).json({ error: "Failed to update project" });
   }
-});
+};
+router.patch("/:id", requireAuth, handleUpdateProject);
+router.put("/:id", requireAuth, handleUpdateProject);
 
 // DELETE /api/projects/:id
 router.delete("/:id", requireAuth, async (req: Request, res: Response) => {

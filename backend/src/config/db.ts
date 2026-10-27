@@ -7,12 +7,17 @@ import {
   ITestimonial,
   IContactMessage,
   IAdmin,
+  ISiteSettings,
+  IActivityLog,
   ProjectModel,
   TeamMemberModel,
   TestimonialModel,
   ContactMessageModel,
   AdminModel,
+  SiteSettingsModel,
+  ActivityLogModel,
 } from "../models";
+import { DEFAULT_SITE_SETTINGS } from "./defaultSettings";
 
 // Fallback JSON db path
 const DB_FILE_PATH = path.join(process.cwd(), "..", "data", "db.json");
@@ -23,6 +28,8 @@ interface LocalDB {
   testimonials: ITestimonial[];
   contactMessages: IContactMessage[];
   admins: IAdmin[];
+  siteSettings?: ISiteSettings;
+  activityLogs?: IActivityLog[];
 }
 
 function ensureLocalDB(): LocalDB {
@@ -37,13 +44,18 @@ function ensureLocalDB(): LocalDB {
       testimonials: [],
       contactMessages: [],
       admins: [],
+      siteSettings: DEFAULT_SITE_SETTINGS,
+      activityLogs: [],
     };
     fs.writeFileSync(DB_FILE_PATH, JSON.stringify(defaultData, null, 2), "utf-8");
     return defaultData;
   }
   try {
     const raw = fs.readFileSync(DB_FILE_PATH, "utf-8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.siteSettings) parsed.siteSettings = DEFAULT_SITE_SETTINGS;
+    if (!parsed.activityLogs) parsed.activityLogs = [];
+    return parsed;
   } catch {
     const defaultData: LocalDB = {
       projects: [],
@@ -51,6 +63,8 @@ function ensureLocalDB(): LocalDB {
       testimonials: [],
       contactMessages: [],
       admins: [],
+      siteSettings: DEFAULT_SITE_SETTINGS,
+      activityLogs: [],
     };
     fs.writeFileSync(DB_FILE_PATH, JSON.stringify(defaultData, null, 2), "utf-8");
     return defaultData;
@@ -75,15 +89,19 @@ export async function connectDB(): Promise<boolean> {
   if (isMongoConnected) return true;
 
   try {
+    mongoose.set("bufferCommands", false);
     await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 3000,
+      serverSelectionTimeoutMS: 2000,
+      bufferCommands: false,
       maxPoolSize: 10,
     });
     isMongoConnected = true;
     console.log("Connected to MongoDB Atlas successfully");
     return true;
   } catch (err) {
-    console.warn("MongoDB connection failed, falling back to local persistent JSON:", err);
+    mongoose.set("bufferCommands", false);
+    isMongoConnected = false;
+    console.warn("MongoDB connection failed, falling back to local persistent JSON:", (err as any)?.message || err);
     return false;
   }
 }
@@ -386,3 +404,104 @@ export async function createAdmin(data: IAdmin): Promise<IAdmin> {
   saveLocalDB(db);
   return data;
 }
+
+export async function updateAdminPassword(email: string, newPasswordHash: string): Promise<boolean> {
+  const hasMongo = await connectDB();
+  if (hasMongo) {
+    const res = await AdminModel.updateOne({ email: email.toLowerCase() }, { $set: { passwordHash: newPasswordHash } });
+    return res.modifiedCount > 0;
+  }
+  const db = ensureLocalDB();
+  const idx = db.admins.findIndex((a) => a.email.toLowerCase() === email.toLowerCase());
+  if (idx === -1) return false;
+  db.admins[idx].passwordHash = newPasswordHash;
+  saveLocalDB(db);
+  return true;
+}
+
+// ================= SITE SETTINGS =================
+export async function getSiteSettings(): Promise<ISiteSettings> {
+  const hasMongo = await connectDB();
+  if (hasMongo) {
+    let settings = await SiteSettingsModel.findOne({ id: "site-settings-singleton" }).lean();
+    if (!settings) {
+      // Seed default settings idempotently
+      await SiteSettingsModel.create(DEFAULT_SITE_SETTINGS);
+      return DEFAULT_SITE_SETTINGS;
+    }
+    return { ...(settings as any), _id: undefined, __v: undefined };
+  }
+  const db = ensureLocalDB();
+  if (!db.siteSettings) {
+    db.siteSettings = DEFAULT_SITE_SETTINGS;
+    saveLocalDB(db);
+  }
+  return db.siteSettings || DEFAULT_SITE_SETTINGS;
+}
+
+export async function updateSiteSettings(data: Partial<ISiteSettings>): Promise<ISiteSettings> {
+  const hasMongo = await connectDB();
+  const updateData = {
+    ...data,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (hasMongo) {
+    const updated = await SiteSettingsModel.findOneAndUpdate(
+      { id: "site-settings-singleton" },
+      { $set: updateData },
+      { new: true, upsert: true }
+    ).lean();
+    return { ...(updated as any), _id: undefined, __v: undefined };
+  }
+
+  const db = ensureLocalDB();
+  db.siteSettings = {
+    ...(db.siteSettings || DEFAULT_SITE_SETTINGS),
+    ...updateData,
+  } as ISiteSettings;
+  saveLocalDB(db);
+  return db.siteSettings;
+}
+
+// ================= ACTIVITY LOGS =================
+export async function addActivityLog(log: Omit<IActivityLog, "id" | "timestamp">): Promise<IActivityLog> {
+  const fullLog: IActivityLog = {
+    ...log,
+    id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    timestamp: new Date().toISOString(),
+  };
+
+  const hasMongo = await connectDB();
+  if (hasMongo) {
+    await ActivityLogModel.create(fullLog);
+    // Keep max 100 logs
+    const total = await ActivityLogModel.countDocuments();
+    if (total > 100) {
+      const oldest = await ActivityLogModel.find().sort({ timestamp: 1 }).limit(total - 100);
+      const ids = oldest.map((d: any) => d._id);
+      await ActivityLogModel.deleteMany({ _id: { $in: ids } });
+    }
+    return fullLog;
+  }
+
+  const db = ensureLocalDB();
+  if (!db.activityLogs) db.activityLogs = [];
+  db.activityLogs.unshift(fullLog);
+  if (db.activityLogs.length > 100) {
+    db.activityLogs = db.activityLogs.slice(0, 100);
+  }
+  saveLocalDB(db);
+  return fullLog;
+}
+
+export async function getActivityLogs(limit = 100): Promise<IActivityLog[]> {
+  const hasMongo = await connectDB();
+  if (hasMongo) {
+    const docs = await ActivityLogModel.find().sort({ timestamp: -1 }).limit(limit).lean();
+    return docs.map((d: any) => ({ ...(d as any), _id: undefined, __v: undefined }));
+  }
+  const db = ensureLocalDB();
+  return (db.activityLogs || []).slice(0, limit);
+}
+

@@ -13,6 +13,6 @@ if (process.env.NODE_ENV !== "production") {
   globalForEvents.insertixLiveBus = liveEvents;
 }
 
-export function notifyUpdate(type: "projects" | "team" | "testimonials" | "leads") {
+export function notifyUpdate(type: "projects" | "team" | "testimonials" | "leads" | "settings") {
   liveEvents.emit("update", { type: `${type}-updated`, timestamp: Date.now() });
 }

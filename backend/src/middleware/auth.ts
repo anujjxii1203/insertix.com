@@ -2,17 +2,18 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { Request, Response, NextFunction } from "express";
 
+// JWT_SECRET must be set in .env — refuse to start if missing (dev and prod)
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET || JWT_SECRET.length < 32 || JWT_SECRET.includes("dummy")) {
-  if (process.env.NODE_ENV === "production") {
-    console.error("FATAL: JWT_SECRET environment variable must be at least 32 characters in production!");
-    process.exit(1);
-  }
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+  console.error(
+    "FATAL: JWT_SECRET environment variable is missing or too short (< 32 chars).\n" +
+    "Add JWT_SECRET to backend/.env and restart."
+  );
+  process.exit(1);
 }
 
-const SECRET_KEY = new TextEncoder().encode(
-  JWT_SECRET || "insertix_super_secret_jwt_key_2026_ultra_secure_min_32"
-);
+// Secret is derived once at startup — guaranteed to be the same for sign + verify
+const SECRET_KEY = new TextEncoder().encode(JWT_SECRET);
 
 export interface AdminSession {
   id: string;
@@ -29,11 +30,12 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
+/** Issues an 8-hour access token (no separate refresh token needed for this scale). */
 export async function createAdminToken(payload: AdminSession): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("2h") // 2 hours short-lived
+    .setExpirationTime("8h")
     .sign(SECRET_KEY);
 }
 
@@ -47,12 +49,18 @@ export async function verifyAdminToken(token: string): Promise<AdminSession | nu
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  let token = req.cookies?.insertix_admin_token;
-  if (!token && req.headers.authorization) {
+  // 1. Try Authorization: Bearer <token> header (primary path for local dev proxy)
+  let token: string | undefined;
+  if (req.headers.authorization) {
     const parts = req.headers.authorization.split(" ");
     if (parts.length === 2 && parts[0] === "Bearer") {
       token = parts[1];
     }
+  }
+
+  // 2. Fallback: httpOnly cookie (works in production where SameSite=None + Secure is set)
+  if (!token) {
+    token = req.cookies?.insertix_admin_token;
   }
 
   if (!token) {

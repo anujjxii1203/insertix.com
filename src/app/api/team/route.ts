@@ -7,11 +7,30 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
+const normalizeInstagram = (val?: string) => {
+  if (!val || typeof val !== "string" || val.trim() === "") return "";
+  const clean = val.trim();
+  if (clean.startsWith("http://") || clean.startsWith("https://")) {
+    try {
+      const u = new URL(clean);
+      if (u.hostname.includes("instagram.com")) {
+        return clean;
+      }
+      return "";
+    } catch {
+      return "";
+    }
+  }
+  const handle = clean.replace(/^@/, "").replace(/[^a-zA-Z0-9._]/g, "");
+  return handle ? `https://www.instagram.com/${handle}` : "";
+};
+
 const TeamMemberSchema = z.object({
-  name: z.string().min(2),
-  role: z.string().min(2),
-  bio: z.string().min(10),
+  name: z.string().min(2).transform((s) => s.trim()),
+  role: z.string().min(2).transform((s) => s.trim()),
+  bio: z.string().min(5).transform((s) => s.trim()),
   avatar: z.string().min(1),
+  instagram: z.string().optional().transform(normalizeInstagram),
   socials: z
     .object({
       linkedin: z.string().optional(),
@@ -23,6 +42,9 @@ const TeamMemberSchema = z.object({
     .default({}),
   order: z.number().optional().default(0),
   visible: z.boolean().optional().default(true),
+  focalX: z.number().min(0).max(100).optional().default(50),
+  focalY: z.number().min(0).max(100).optional().default(22),
+  zoom: z.number().min(1).max(5).optional().default(1),
 });
 
 export async function GET(req: Request) {

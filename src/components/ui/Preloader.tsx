@@ -18,15 +18,25 @@ export default function Preloader() {
       setProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          setTimeout(() => setIsLoaded(true), 200);
+          setTimeout(() => setIsLoaded(true), 150);
           return 100;
         }
-        const increment = Math.floor(Math.random() * 16) + 12;
+        const increment = Math.floor(Math.random() * 18) + 14;
         return Math.min(prev + increment, 100);
       });
-    }, 28);
+    }, 24);
 
-    return () => clearInterval(interval);
+    // Hard failsafe: always dismiss loader after 2.5 seconds max
+    const failsafe = setTimeout(() => {
+      clearInterval(interval);
+      setProgress(100);
+      setIsLoaded(true);
+    }, 2500);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(failsafe);
+    };
   }, []);
 
   return (
@@ -55,6 +65,7 @@ export default function Preloader() {
                 alt="Insertix Media"
                 fill
                 priority
+                sizes="192px"
                 className="object-contain"
               />
             </div>

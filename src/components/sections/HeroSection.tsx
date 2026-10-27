@@ -1,8 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, MessageCircle } from "lucide-react";
 import { getWhatsAppUrl } from "@/components/ui/WhatsAppFloating";
+import { ISiteSettings } from "@/lib/models";
+import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
+
+import { useLiveEvent } from "@/lib/liveSync";
 
 const MARQUEE_SERVICES = [
   "VIDEO SHOOTS",
@@ -12,14 +17,22 @@ const MARQUEE_SERVICES = [
   "EVENT SHOOTS",
 ];
 
-const HERO_STATS = [
-  { value: "140+", label: "Projects Completed" },
-  { value: "65+", label: "Brand Partners" },
-  { value: "10M+", label: "Audience Views" },
-  { value: "99%", label: "Satisfaction Rate" },
-];
+export default function HeroSection({ initialSettings }: { initialSettings?: ISiteSettings }) {
+  const [settings, setSettings] = useState<ISiteSettings>(initialSettings || DEFAULT_SITE_SETTINGS);
 
-export default function HeroSection() {
+  useLiveEvent("settings-updated", () => {
+    fetch("/api/settings")
+      .then((r) => r.ok && r.json())
+      .then((fresh) => {
+        if (fresh && fresh.hero) setSettings(fresh);
+      })
+      .catch(() => {});
+  });
+
+  const hero = settings.hero || DEFAULT_SITE_SETTINGS.hero;
+  const heroStats = (settings.heroStats || DEFAULT_SITE_SETTINGS.heroStats).filter(
+    (s) => s.visible !== false
+  );
   const waUrl = getWhatsAppUrl();
 
   const handleScrollToWork = (e: React.MouseEvent) => {
@@ -31,12 +44,9 @@ export default function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative min-h-[100svh] flex flex-col justify-between pt-[88px] pb-0 overflow-hidden bg-[#FFFFFF]"
+      className="relative min-h-[100svh] flex flex-col justify-between pt-[88px] pb-0 overflow-hidden bg-[var(--bg)]"
     >
-      {/* 
-        Soft, static radial glow in the top-right using rgba(212,0,0,0.10) fading to transparent.
-        CSS radial-gradient only, NO filter blur, NO animation.
-      */}
+      {/* Soft, static radial glow */}
       <div
         className="absolute top-0 right-0 w-[600px] sm:w-[750px] lg:w-[900px] h-[550px] sm:h-[700px] pointer-events-none -z-10"
         style={{
@@ -52,38 +62,38 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white border border-[rgba(10,10,10,0.08)] shadow-xs mb-8"
+          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-xs mb-8"
         >
           <span className="relative flex h-2.5 w-2.5">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#D40000]" />
           </span>
-          <span className="text-xs font-mono font-bold tracking-wider uppercase text-[#0A0A0A]">
+          <span className="text-xs font-mono font-bold tracking-wider uppercase text-[var(--text)]">
             REC
           </span>
-          <span className="w-1 h-1 rounded-full bg-[rgba(10,10,10,0.25)]" />
-          <span className="text-xs font-mono font-semibold tracking-wider uppercase text-[#6B6B6B]">
-            Creative Media Agency
+          <span className="w-1 h-1 rounded-full bg-[var(--muted)] opacity-50" />
+          <span className="text-xs font-mono font-semibold tracking-wider uppercase text-[var(--muted)]">
+            {hero.badge || "Creative Media Agency"}
           </span>
         </motion.div>
 
-        {/* Headline: We Shoot Stories / That Make Brands / Unforgettable */}
+        {/* Headline */}
         <motion.h1
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="text-[#0A0A0A] font-black uppercase tracking-tight max-w-[960px] text-center"
+          className="text-[var(--text)] font-black uppercase tracking-tight max-w-[960px] text-center"
           style={{
             fontSize: "clamp(2.75rem, 6.2vw, 5.8rem)",
             lineHeight: 1.05,
           }}
         >
-          <span>We Shoot Stories</span>
+          <span>{hero.headlineLine1 || "We Shoot Stories"}</span>
           <br />
-          <span>That Make Brands</span>
+          <span>{hero.headlineLine2 || "That Make Brands"}</span>
           <br />
-          <span className="font-serif italic font-normal tracking-normal text-[#D40000] lowercase first-letter:uppercase">
-            Unforgettable
+          <span className="font-serif italic font-normal tracking-normal text-[#D40000] lowercase first-letter:uppercase inline-block">
+            {hero.accentWord || "unforgettable"}
           </span>
         </motion.h1>
 
@@ -92,69 +102,73 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="mt-6 text-[#6B6B6B] max-w-[640px] text-base sm:text-lg leading-relaxed font-normal"
+          className="mt-6 text-[var(--muted)] max-w-[640px] text-base sm:text-lg leading-relaxed font-normal"
         >
-          Insertix Media is a creative media agency for video shoots, photoshoots, product shoots, event coverage and marketing. We turn ideas into content people remember.
+          {hero.subtitle ||
+            "Insertix Media is a creative media agency for video shoots, photoshoots, product shoots, event coverage and marketing. We turn ideas into content people remember."}
         </motion.p>
 
-        {/* Buttons: Primary "Let's Talk" (red pill) & Secondary "View Our Work" (black pill) */}
+        {/* Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto"
         >
-          {/* Primary Button: Red Pill */}
+          {/* Primary Button */}
+          <a
+            href="#recent-work"
+            onClick={handleScrollToWork}
+            className="group inline-flex items-center justify-center gap-2.5 h-[56px] px-8 rounded-full bg-[#D40000] hover:bg-[#A80000] text-white font-bold text-sm uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
+            id="hero-view-work-cta"
+          >
+            <span>{hero.primaryBtnText || "View Recent Work"}</span>
+            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </a>
+
+          {/* Secondary WhatsApp Button */}
           <a
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center justify-center gap-2.5 h-[56px] px-8 rounded-full bg-[#D40000] hover:bg-[#A80000] text-white font-bold text-sm uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
+            className="group inline-flex items-center justify-center gap-2.5 h-[56px] px-8 rounded-full bg-[var(--text)] hover:opacity-90 text-[var(--bg)] font-bold text-sm uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
             id="hero-whatsapp-cta"
           >
             <MessageCircle className="w-5 h-5 fill-current" />
-            <span>Let&apos;s Talk</span>
-            <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-          </a>
-
-          {/* Secondary Button: Black Pill */}
-          <a
-            href="#recent-work"
-            onClick={handleScrollToWork}
-            className="group inline-flex items-center justify-center gap-2.5 h-[56px] px-8 rounded-full bg-[#0A0A0A] hover:bg-[#1a1a1a] text-white font-bold text-sm uppercase tracking-wider transition-all duration-200 shadow-sm hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
-            id="hero-view-work-cta"
-          >
-            <span>View Our Work</span>
+            <span>{hero.secondaryBtnText || "Chat on WhatsApp"}</span>
             <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </a>
         </motion.div>
 
         {/* Hero Stats Row */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="mt-12 pt-8 border-t border-[rgba(10,10,10,0.08)] grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 max-w-3xl w-full"
-        >
-          {HERO_STATS.map((stat, idx) => (
-            <div key={idx} className="flex flex-col items-center">
-              <span className="font-mono font-black text-2xl sm:text-3xl text-[#0A0A0A]">
-                {stat.value}
-              </span>
-              <span className="text-xs font-mono uppercase tracking-wider text-[#6B6B6B] mt-1">
-                {stat.label}
-              </span>
-            </div>
-          ))}
-        </motion.div>
+        {heroStats.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mt-12 pt-8 border-t border-[var(--border)] grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10 max-w-3xl w-full"
+          >
+            {heroStats.map((stat, idx) => (
+              <div key={idx} className="flex flex-col items-center">
+                <span className="font-mono font-black text-2xl sm:text-3xl text-[var(--text)]">
+                  {stat.value}
+                  {stat.suffix || ""}
+                </span>
+                <span className="text-xs font-mono uppercase tracking-wider text-[var(--muted)] mt-1">
+                  {stat.label}
+                </span>
+              </div>
+            ))}
+          </motion.div>
+        )}
       </div>
 
-      {/* Marquee Strip: background --bg-alt, text --muted uppercase small, separator = small red dot */}
-      <div className="relative z-10 w-full mt-12 py-4 border-y border-[rgba(10,10,10,0.08)] bg-[#F5F4F2] overflow-hidden">
-        <div className="animate-marquee-left whitespace-nowrap flex items-center gap-10 font-mono text-xs font-semibold tracking-[0.2em] text-[#6B6B6B]">
+      {/* Marquee Strip */}
+      <div className="relative z-10 w-full mt-12 py-4 border-y border-[var(--border)] bg-[var(--bg-alt)] overflow-hidden">
+        <div className="animate-marquee-left whitespace-nowrap flex items-center gap-10 font-mono text-xs font-semibold tracking-[0.2em] text-[var(--muted)]">
           {[...MARQUEE_SERVICES, ...MARQUEE_SERVICES].map((item, idx) => (
             <div key={idx} className="flex items-center gap-8">
-              <span className="hover:text-[#0A0A0A] transition-colors cursor-default">
+              <span className="hover:text-[var(--text)] transition-colors cursor-default">
                 {item}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#D40000] flex-shrink-0" />

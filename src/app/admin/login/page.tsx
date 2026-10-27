@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
+import { storeAdminToken, getReturnTab, clearDraft } from "@/lib/adminAuth";
+
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,7 +33,14 @@ export default function AdminLoginPage() {
         return;
       }
 
-      router.push("/admin");
+      // Persist token in localStorage for Bearer auth on all subsequent write requests
+      if (data.token) {
+        storeAdminToken(data.token);
+      }
+
+      // Return to the tab they were editing (set when session expired mid-edit)
+      const returnTab = getReturnTab();
+      window.location.href = returnTab ? `/admin?tab=${returnTab}` : "/admin";
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);

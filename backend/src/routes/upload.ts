@@ -102,7 +102,8 @@ router.post(
           });
         } catch (ikError: any) {
           console.error("ImageKit upload failed:", ikError);
-          return res.status(500).json({ error: "ImageKit upload failed" });
+          const detail = ikError?.message || (typeof ikError === "string" ? ikError : "ImageKit service error");
+          return res.status(500).json({ error: `ImageKit upload failed: ${detail}` });
         }
       }
 
@@ -118,9 +119,10 @@ router.post(
         success: true,
         url: `/uploads/${safeName}`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      return res.status(500).json({ error: "Image processing failed" });
+      const detail = error?.message || "Image processing failed";
+      return res.status(500).json({ error: detail });
     }
   }
 );

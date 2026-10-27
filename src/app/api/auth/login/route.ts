@@ -16,7 +16,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid credentials format" }, { status: 400 });
     }
 
-    const { email, password } = parsed.data;
+    const email = parsed.data.email.trim().toLowerCase();
+    const password = parsed.data.password.trim();
     const admin = await getAdminByEmail(email);
     if (!admin) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });

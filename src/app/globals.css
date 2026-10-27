@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@theme {
+  --font-serif: var(--font-playfair), "Playfair Display", ui-serif, Georgia, serif;
+}
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @layer base {
   :root {
     --bg: #FFFFFF;
@@ -13,6 +19,9 @@
     --accent-dark: #A80000;
     --accent-soft: #FDECEC;
     --dark: #0A0A0A;
+    --nav-bg: rgba(255, 255, 255, 0.90);
+    --nav-pill-bg: #FFFFFF;
+    --nav-border: rgba(10, 10, 10, 0.08);
 
     /* Red Gradient Tokens */
     --red-light: #FF5A4D;
@@ -22,6 +31,25 @@
     --grad: linear-gradient(90deg, #FF5A4D 0%, #D40000 50%, #7A0000 100%);
     --grad-diag: linear-gradient(135deg, #FF5A4D 0%, #D40000 55%, #7A0000 100%);
     --grad-soft: linear-gradient(135deg, #FFD6D0 0%, #FDECEC 60%, #FFFFFF 100%);
+  }
+
+  [data-theme="dark"] {
+    --bg: #0A0A0A;
+    --bg-alt: #111111;
+    --surface: #161616;
+    --surface-2: #1C1C1C;
+    --text: #F5F5F5;
+    --muted: #A3A3A3;
+    --border: rgba(255, 255, 255, 0.10);
+    --accent: #D40000;
+    --accent-dark: #FF5A4D;
+    --accent-soft: rgba(212, 0, 0, 0.18);
+    --dark: #FFFFFF;
+    --nav-bg: #0A0A0A;
+    --nav-pill-bg: #FFFFFF;
+    --nav-border: rgba(255, 255, 255, 0.10);
+
+    --grad-soft: linear-gradient(135deg, rgba(212, 0, 0, 0.25) 0%, rgba(20, 20, 20, 0.8) 100%);
   }
 
   * {
@@ -145,10 +173,17 @@
   background: var(--accent);
 }
 
-/* Carousel edge fade masks */
+/* Carousel edge fade masks: 120px on desktop, 60px on mobile */
 .carousel-mask {
-  mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, black 120px, black calc(100% - 120px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, black 120px, black calc(100% - 120px), transparent 100%);
+}
+
+@media (max-width: 640px) {
+  .carousel-mask {
+    mask-image: linear-gradient(to right, transparent 0, black 60px, black calc(100% - 60px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 60px, black calc(100% - 60px), transparent 100%);
+  }
 }
 
 /* Infinite marquee: transform only with will-change */
@@ -162,10 +197,6 @@
   width: max-content;
   animation: marqueeLeft var(--marquee-duration, 45s) linear infinite;
   will-change: transform;
-}
-
-.animate-marquee-left:hover {
-  animation-play-state: paused;
 }
 
 /* Below-the-fold content visibility for faster rendering and TBT reduction */
@@ -213,4 +244,30 @@
 .admin-theme input,
 .admin-theme textarea {
   cursor: text !important;
+}
+
+/* Theme-driven Navbar & Logo Utilities */
+.site-navbar {
+  background-color: var(--nav-bg) !important;
+  border-bottom-color: var(--nav-border) !important;
+}
+
+.site-nav-pill {
+  background-color: #FFFFFF !important;
+  border-color: rgba(10, 10, 10, 0.08) !important;
+}
+
+/* Light / Dark Logo Swap (Zero JS required, zero hydration flicker) */
+.logo-light {
+  display: block !important;
+}
+.logo-dark {
+  display: none !important;
+}
+
+[data-theme="dark"] .logo-light {
+  display: none !important;
+}
+[data-theme="dark"] .logo-dark {
+  display: block !important;
 }

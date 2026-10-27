@@ -44,8 +44,8 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
     res.cookie("insertix_admin_token", token, {
       httpOnly: true,
       secure: isProd,
-      sameSite: isProd ? "none" : "lax", // cross-site between Vercel and Render
-      maxAge: 2 * 60 * 60 * 1000, // 2 hours
+      sameSite: isProd ? "none" : "lax", // SameSite=None+Secure only in production (https)
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours — matches JWT expiry
       path: "/",
     });
 

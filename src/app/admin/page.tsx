@@ -25,24 +25,47 @@ import {
   Clock,
   Sparkles,
   Crop,
+  Settings,
+  Key,
+  Shield,
+  ChevronDown,
+  ChevronRight,
+  RotateCcw,
 } from "lucide-react";
-import { IProject, ITeamMember, ITestimonial, IContactMessage } from "@/lib/models";
+import { IProject, ITeamMember, ITestimonial, IContactMessage, ISiteSettings, IActivityLog } from "@/lib/models";
+import { DEFAULT_SITE_SETTINGS } from "@/lib/defaultSettings";
 import { PROJECT_CATEGORIES } from "@/constants/inquiry";
 import ImageCropperModal from "@/components/ui/ImageCropperModal";
+import SettingsTab from "@/components/admin/SettingsTab";
+import { useLiveEvent } from "@/lib/liveSync";
+import { authFetch, getAuthHeader, clearAdminToken, getReturnTab, clearDraft, saveDraft } from "@/lib/adminAuth";
 
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<"projects" | "team" | "testimonials" | "leads">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "team" | "testimonials" | "leads" | "settings">("projects");
+
 
   const [projects, setProjects] = useState<IProject[]>([]);
   const [team, setTeam] = useState<ITeamMember[]>([]);
   const [testimonials, setTestimonials] = useState<ITestimonial[]>([]);
   const [leads, setLeads] = useState<IContactMessage[]>([]);
+  const [settings, setSettings] = useState<ISiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [activityLogs, setActivityLogs] = useState<IActivityLog[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; showLiveLink?: boolean } | null>(null);
+
+  // Settings State & Form
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [openSection, setOpenSection] = useState<string>("hero");
+
+  // Admin Security state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Modals
   const [editingProject, setEditingProject] = useState<Partial<IProject> | null>(null);
@@ -53,65 +76,86 @@ export default function AdminDashboardPage() {
   // Image Cropper Modal State
   const [cropperState, setCropperState] = useState<{
     imageSrc: string;
-    aspectRatio: number;
+    initialAspectRatio?: "4:3" | "1:1" | "4:5";
+    initialFocalX?: number;
+    initialFocalY?: number;
+    initialZoom?: number;
+    allowedRatios?: ("4:3" | "1:1" | "4:5")[];
     title: string;
-    onComplete: (url: string) => void;
+    onComplete: (data: { url?: string; focalX: number; focalY: number; zoom: number; aspectRatio: string }) => void;
   } | null>(null);
+
 
   const showToast = (message: string, showLiveLink = true) => {
     setToast({ message, showLiveLink });
     setTimeout(() => setToast(null), 4500);
   };
 
-  // Check auth
+  // Check auth + restore tab from URL on mount
   useEffect(() => {
-    fetch("/api/auth/me")
+    let isMounted = true;
+
+    // Restore tab from ?tab= param (set by login redirect after session expiry)
+    const urlTab = new URLSearchParams(window.location.search).get("tab") as typeof activeTab | null;
+    if (urlTab && ["projects", "team", "testimonials", "leads", "settings"].includes(urlTab)) {
+      setActiveTab(urlTab);
+      clearDraft(); // draft was restored, wipe it
+    }
+
+    fetch("/api/auth/me", { headers: getAuthHeader() })
       .then((res) => {
+        if (!isMounted) return;
         if (!res.ok) {
-          router.push("/admin/login");
+          clearAdminToken();
+          router.replace("/admin/login");
         } else {
           setAuthChecked(true);
           loadAllData();
         }
       })
-      .catch(() => router.push("/admin/login"));
-  }, [router]);
-
-  // Connect to SSE for real-time sync in Admin
-  useEffect(() => {
-    if (!authChecked) return;
-    const es = new EventSource("/api/events");
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (data.type === "leads-updated") {
-          fetch("/api/admin/contacts").then((r) => {
-            if (r.ok) {
-              r.json().then(setLeads);
-            }
-          });
-        }
-      } catch {
-        // ignore
-      }
+      .catch(() => {
+        if (!isMounted) return;
+        router.replace("/admin/login");
+      });
+    return () => {
+      isMounted = false;
     };
-    return () => es.close();
-  }, [authChecked]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Real-time sync for inquiries via shared connection
+  useLiveEvent("leads-updated", () => {
+    if (!authChecked) return;
+    fetch("/api/admin/contacts")
+      .then((r) => r.ok && r.json())
+      .then((fresh) => Array.isArray(fresh) && setLeads(fresh))
+      .catch(() => {});
+  });
 
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [projRes, teamRes, testRes, leadsRes] = await Promise.all([
+      const [projRes, teamRes, testRes, leadsRes, setRes, logsRes] = await Promise.all([
         fetch("/api/projects?admin=true"),
         fetch("/api/team?admin=true"),
         fetch("/api/testimonials?admin=true"),
         fetch("/api/admin/contacts"),
+        fetch("/api/settings"),
+        fetch("/api/admin/activity-logs"),
       ]);
 
       if (projRes.ok) setProjects(await projRes.json());
       if (teamRes.ok) setTeam(await teamRes.json());
       if (testRes.ok) setTestimonials(await testRes.json());
       if (leadsRes.ok) setLeads(await leadsRes.json());
+      if (setRes.ok) {
+        const setJson = await setRes.json();
+        if (setJson && setJson.hero) setSettings(setJson);
+      }
+      if (logsRes.ok) {
+        const logsJson = await logsRes.json();
+        if (Array.isArray(logsJson)) setActivityLogs(logsJson);
+      }
     } catch (err) {
       console.error("Failed to load admin data:", err);
     } finally {
@@ -120,63 +164,117 @@ export default function AdminDashboardPage() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch("/api/auth/logout", { method: "POST", headers: getAuthHeader() });
+    clearAdminToken();
+    clearDraft();
     router.push("/admin/login");
   };
 
 
-  // Direct upload of a Blob or File to /api/upload
+  // Direct upload of a Blob or File to /api/upload with progress & retry
   const uploadBlob = async (blob: Blob | File, filename = "image.webp"): Promise<string | null> => {
+    // Client-side file validation (max 8MB, valid image format)
+    if (blob.size > 8 * 1024 * 1024) {
+      showToast("File exceeds 8MB maximum upload limit. Please choose a smaller file.", false);
+      return null;
+    }
+
     setUploading(true);
+    showToast("Compressing & uploading image...", false);
     const formData = new FormData();
     formData.append("file", blob, filename);
 
     try {
-      const res = await fetch("/api/upload", {
+      const res = await authFetch("/api/upload", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
-      if (data.url) {
-        showToast("Image saved & compressed", false);
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.url) {
+        showToast("Image saved & compressed on ImageKit", false);
         return data.url;
       } else {
-        alert(data.error || "Failed to upload image");
+        const errorMsg = data.error || `Upload failed (Status ${res.status})`;
+        console.error("Server upload error:", errorMsg);
+        showToast(`Upload failed: ${errorMsg}`, false);
         return null;
       }
-    } catch {
-      alert("Failed to upload image");
+    } catch (err: any) {
+      console.error("Network upload error:", err);
+      showToast(`Upload failed: ${err.message || "Network error. Please try again."}`, false);
       return null;
     } finally {
       setUploading(false);
     }
   };
 
-  // Pick file and open Cropper Modal with appropriate aspect ratio
-  const handleFileSelectForCrop = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    aspectRatio: number,
+  // Process a selected or dropped/pasted file
+  const processImageFile = (
+    file: File,
+    initialAspectRatio: "4:3" | "1:1" | "4:5",
+    allowedRatios: ("4:3" | "1:1" | "4:5")[],
     title: string,
-    callback: (url: string) => void
+    callback: (data: { url?: string; focalX: number; focalY: number; zoom: number; aspectRatio: string }) => void,
+    initialFocalX = 50,
+    initialFocalY = 50,
+    initialZoom = 1
   ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+    if (!validTypes.includes(file.type) && !/\.(jpe?g|png|webp|avif)$/i.test(file.name)) {
+      showToast("Unsupported file format. Please upload JPG, PNG, WebP, or AVIF.", false);
+      return;
+    }
 
-    // Reset input value so same file can be selected again
-    e.target.value = "";
+    // Validate size (8MB)
+    if (file.size > 8 * 1024 * 1024) {
+      showToast("File size exceeds 8MB. Please choose a smaller image.", false);
+      return;
+    }
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       if (typeof reader.result === "string") {
+        // Upload the ORIGINAL file first to ImageKit
+        const uploadedUrl = await uploadBlob(file, file.name);
+        if (!uploadedUrl) return;
+
         setCropperState({
           imageSrc: reader.result,
-          aspectRatio,
+          initialAspectRatio,
+          allowedRatios,
+          initialFocalX,
+          initialFocalY,
+          initialZoom,
           title,
-          onComplete: callback,
+          onComplete: (cropData) => {
+            callback({
+              url: uploadedUrl,
+              ...cropData,
+            });
+          },
         });
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  // Pick file from input and open Cropper Modal
+  const handleFileSelectForCrop = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    initialAspectRatio: "4:3" | "1:1" | "4:5",
+    allowedRatios: ("4:3" | "1:1" | "4:5")[],
+    title: string,
+    callback: (data: { url?: string; focalX: number; focalY: number; zoom: number; aspectRatio: string }) => void,
+    initialFocalX = 50,
+    initialFocalY = 50,
+    initialZoom = 1
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    processImageFile(file, initialAspectRatio, allowedRatios, title, callback, initialFocalX, initialFocalY, initialZoom);
   };
 
 
@@ -207,7 +305,7 @@ export default function AdminDashboardPage() {
 
     const res = await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify(payload),
     });
 
@@ -219,10 +317,19 @@ export default function AdminDashboardPage() {
         setProjects(prev => [...prev, saved]);
       }
       setEditingProject(null);
-      showToast("Saved. Live on the website");
+
+      // Check whether ISR revalidation succeeded or was delayed/skipped
+      if (saved._revalidation?.success) {
+        showToast("Saved. Live on the website");
+      } else {
+        showToast("Saved, but the website may take a few minutes to update");
+        if (saved._revalidation?.error) {
+          console.warn("[Admin] Revalidation notice:", saved._revalidation.error);
+        }
+      }
     } else {
-      const err = await res.json();
-      alert(err.error || "Error saving project");
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || `Error saving project (${res.status})`);
     }
   };
 
@@ -231,7 +338,7 @@ export default function AdminDashboardPage() {
     const newVisible = p.visible === false ? true : false;
     // Optimistic update
     setProjects(prev => prev.map(item => item.id === p.id ? { ...item, visible: newVisible } : item));
-    const res = await fetch(`/api/projects/${p.id}`, {
+    const res = await authFetch(`/api/projects/${p.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visible: newVisible }),
@@ -258,12 +365,12 @@ export default function AdminDashboardPage() {
 
     // Save orders
     await Promise.all([
-      fetch(`/api/projects/${updated[index].id}`, {
+      authFetch(`/api/projects/${updated[index].id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: updated[index].order }),
       }),
-      fetch(`/api/projects/${updated[targetIndex].id}`, {
+      authFetch(`/api/projects/${updated[targetIndex].id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: updated[targetIndex].order }),
@@ -275,7 +382,7 @@ export default function AdminDashboardPage() {
   const deleteProject = async (id: string) => {
     if (!confirm("Delete this project from website and database?")) return;
     setProjects(prev => prev.filter(p => p.id !== id));
-    const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    const res = await authFetch(`/api/projects/${id}`, { method: "DELETE" });
     if (res.ok) {
       showToast("Project deleted from live site");
     } else {
@@ -300,7 +407,7 @@ export default function AdminDashboardPage() {
 
     const res = await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify(payload),
     });
 
@@ -312,16 +419,21 @@ export default function AdminDashboardPage() {
         setTeam(prev => [...prev, saved]);
       }
       setEditingTeam(null);
-      showToast("Team member saved. Live on the website");
+      if (saved._revalidation?.success) {
+        showToast("Team member saved. Live on the website");
+      } else {
+        showToast("Team member saved, website will refresh shortly");
+      }
     } else {
-      alert("Error saving team member");
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || `Error saving team member (${res.status})`);
     }
   };
 
   const toggleTeamVisibility = async (m: ITeamMember) => {
     const newVisible = m.visible === false ? true : false;
     setTeam(prev => prev.map(item => item.id === m.id ? { ...item, visible: newVisible } : item));
-    const res = await fetch(`/api/team/${m.id}`, {
+    const res = await authFetch(`/api/team/${m.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visible: newVisible }),
@@ -346,12 +458,12 @@ export default function AdminDashboardPage() {
     setTeam(updated);
 
     await Promise.all([
-      fetch(`/api/team/${updated[index].id}`, {
+      authFetch(`/api/team/${updated[index].id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: updated[index].order }),
       }),
-      fetch(`/api/team/${updated[targetIndex].id}`, {
+      authFetch(`/api/team/${updated[targetIndex].id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: updated[targetIndex].order }),
@@ -363,7 +475,7 @@ export default function AdminDashboardPage() {
   const deleteTeamMember = async (id: string) => {
     if (!confirm("Delete this team member?")) return;
     setTeam(prev => prev.filter(m => m.id !== id));
-    const res = await fetch(`/api/team/${id}`, { method: "DELETE" });
+    const res = await authFetch(`/api/team/${id}`, { method: "DELETE" });
     if (res.ok) {
       showToast("Team member removed from live site");
     } else {
@@ -388,7 +500,7 @@ export default function AdminDashboardPage() {
 
     const res = await fetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getAuthHeader() },
       body: JSON.stringify(payload),
     });
 
@@ -400,16 +512,21 @@ export default function AdminDashboardPage() {
         setTestimonials(prev => [...prev, saved]);
       }
       setEditingTestimonial(null);
-      showToast("Testimonial saved. Live on website");
+      if (saved._revalidation?.success) {
+        showToast("Testimonial saved. Live on website");
+      } else {
+        showToast("Testimonial saved, website will refresh shortly");
+      }
     } else {
-      alert("Error saving testimonial");
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || `Error saving testimonial (${res.status})`);
     }
   };
 
   const toggleTestimonialVisibility = async (t: ITestimonial) => {
     const newVisible = t.visible === false ? true : false;
     setTestimonials(prev => prev.map(item => item.id === t.id ? { ...item, visible: newVisible } : item));
-    const res = await fetch(`/api/testimonials/${t.id}`, {
+    const res = await authFetch(`/api/testimonials/${t.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visible: newVisible }),
@@ -434,12 +551,12 @@ export default function AdminDashboardPage() {
     setTestimonials(updated);
 
     await Promise.all([
-      fetch(`/api/testimonials/${updated[index].id}`, {
+      authFetch(`/api/testimonials/${updated[index].id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: updated[index].order }),
       }),
-      fetch(`/api/testimonials/${updated[targetIndex].id}`, {
+      authFetch(`/api/testimonials/${updated[targetIndex].id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ order: updated[targetIndex].order }),
@@ -451,7 +568,7 @@ export default function AdminDashboardPage() {
   const deleteTestimonial = async (id: string) => {
     if (!confirm("Delete this testimonial?")) return;
     setTestimonials(prev => prev.filter(t => t.id !== id));
-    const res = await fetch(`/api/testimonials/${id}`, { method: "DELETE" });
+    const res = await authFetch(`/api/testimonials/${id}`, { method: "DELETE" });
     if (res.ok) {
       showToast("Testimonial deleted from live site");
     } else {
@@ -462,7 +579,7 @@ export default function AdminDashboardPage() {
   // ================= LEAD ACTIONS =================
   const updateLeadStatus = async (id: string, status: "new" | "contacted" | "closed") => {
     setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
-    await fetch(`/api/admin/contacts/${id}`, {
+    await authFetch(`/api/admin/contacts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
@@ -473,11 +590,100 @@ export default function AdminDashboardPage() {
   const deleteLead = async (id: string) => {
     if (!confirm("Delete this inquiry record?")) return;
     setLeads(prev => prev.filter(l => l.id !== id));
-    const res = await fetch(`/api/admin/contacts/${id}`, { method: "DELETE" });
+    const res = await authFetch(`/api/admin/contacts/${id}`, { method: "DELETE" });
     if (res.ok) {
       showToast("Inquiry deleted");
     } else {
       loadAllData();
+    }
+  };
+
+  // ================= SITE SETTINGS ACTIONS =================
+  const saveSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setSavingSettings(true);
+    try {
+      const res = await authFetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+        onSessionExpired: () => saveDraft("settings", settings),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setSettings(updated);
+        setSettingsDirty(false);
+        showToast("Site settings saved. Live on website");
+        // refresh logs
+        fetch("/api/admin/activity-logs")
+          .then((r) => r.ok && r.json())
+          .then((logs) => Array.isArray(logs) && setActivityLogs(logs));
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to save settings");
+      }
+    } catch {
+      alert("Network error saving settings");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const resetSection = (sectionKey: keyof ISiteSettings) => {
+    if (!confirm(`Reset ${String(sectionKey)} section back to default content?`)) return;
+    setSettings((prev) => ({
+      ...prev,
+      [sectionKey]: DEFAULT_SITE_SETTINGS[sectionKey],
+    }));
+    setSettingsDirty(true);
+    showToast(`Section ${String(sectionKey)} reset to default (click Save to publish)`);
+  };
+
+  // ================= SECURITY ACTIONS =================
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMsg(null);
+
+    if (newPassword.length < 12) {
+      setPasswordMsg({ type: "error", text: "New password must be at least 12 characters" });
+      return;
+    }
+
+    try {
+      const res = await authFetch("/api/admin/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordMsg({ type: "success", text: "Password changed successfully" });
+        setCurrentPassword("");
+        setNewPassword("");
+        showToast("Password changed successfully", false);
+        // refresh logs
+        fetch("/api/admin/activity-logs")
+          .then((r) => r.ok && r.json())
+          .then((logs) => Array.isArray(logs) && setActivityLogs(logs));
+      } else {
+        setPasswordMsg({ type: "error", text: data.error || "Failed to change password" });
+      }
+    } catch {
+      setPasswordMsg({ type: "error", text: "Network error changing password" });
+    }
+  };
+
+  const handleLogoutAllSessions = async () => {
+    if (!confirm("Are you sure you want to log out of all active sessions? You will need to log in again.")) return;
+    try {
+      await authFetch("/api/admin/logout-all", { method: "POST" });
+      clearAdminToken();
+      clearDraft();
+      router.push("/admin/login");
+    } catch {
+      router.push("/admin/login");
     }
   };
 
@@ -599,6 +805,21 @@ export default function AdminDashboardPage() {
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#D40000] text-white">
                 {unreadLeadsCount} New
               </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all flex-shrink-0 cursor-pointer ${
+              activeTab === "settings"
+                ? "bg-[#0A0A0A] text-white shadow-sm"
+                : "bg-white border border-[rgba(10,10,10,0.08)] text-[#6B6B6B] hover:text-[#0A0A0A]"
+            }`}
+          >
+            <Settings className="w-4 h-4 text-[#D40000]" />
+            <span>Site Settings</span>
+            {settingsDirty && (
+              <span className="w-2 h-2 rounded-full bg-[#D40000]" title="Unsaved changes" />
             )}
           </button>
         </div>
@@ -1117,6 +1338,27 @@ export default function AdminDashboardPage() {
             )}
           </div>
         )}
+
+        {/* ================= SITE SETTINGS TAB ================= */}
+        {activeTab === "settings" && (
+          <SettingsTab
+            settings={settings}
+            setSettings={setSettings}
+            setSettingsDirty={setSettingsDirty}
+            saveSettings={saveSettings}
+            resetSection={resetSection}
+            savingSettings={savingSettings}
+            settingsDirty={settingsDirty}
+            activityLogs={activityLogs}
+            handleChangePassword={handleChangePassword}
+            currentPassword={currentPassword}
+            setCurrentPassword={setCurrentPassword}
+            newPassword={newPassword}
+            setNewPassword={setNewPassword}
+            passwordMsg={passwordMsg}
+            handleLogoutAllSessions={handleLogoutAllSessions}
+          />
+        )}
       </main>
 
       {/* ================= PROJECT EDIT MODAL ================= */}
@@ -1233,7 +1475,9 @@ export default function AdminDashboardPage() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-[#6B6B6B] uppercase font-bold">Cover Image (URL or Local WebP)</label>
-                  <span className="text-[11px] font-mono text-[#D40000]">Card ratio: 4:3</span>
+                  <span className="text-[11px] font-mono text-[#D40000]">
+                    Card ratio: {editingProject.aspectRatio || "4:3"}
+                  </span>
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -1248,33 +1492,141 @@ export default function AdminDashboardPage() {
                     <span>{uploading ? "Uploading..." : "Upload & Crop"}</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       disabled={uploading}
                       className="hidden"
                       onChange={(e) =>
-                        handleFileSelectForCrop(e, 4 / 3, "Crop Project Thumbnail (4:3)", (url) =>
-                          setEditingProject((prev) => ({ ...prev, coverImage: url }))
+                        handleFileSelectForCrop(
+                          e,
+                          (editingProject.aspectRatio as any) || "4:3",
+                          ["4:3", "1:1", "4:5"],
+                          "Position & Frame Project Image",
+                          (data) => {
+                            setEditingProject((prev) => ({
+                              ...prev,
+                              coverImage: data.url || prev?.coverImage,
+                              focalX: data.focalX,
+                              focalY: data.focalY,
+                              zoom: data.zoom,
+                              aspectRatio: data.aspectRatio,
+                            }));
+                          },
+                          editingProject.focalX ?? 50,
+                          editingProject.focalY ?? 50,
+                          editingProject.zoom ?? 1
                         )
                       }
                     />
                   </label>
                 </div>
 
+                {/* Drag-and-drop & paste dropzone */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const droppedFile = e.dataTransfer.files?.[0];
+                    if (droppedFile) {
+                      processImageFile(
+                        droppedFile,
+                        (editingProject.aspectRatio as any) || "4:3",
+                        ["4:3", "1:1", "4:5"],
+                        "Position & Frame Project Image",
+                        (data) => {
+                          setEditingProject((prev) => ({
+                            ...prev,
+                            coverImage: data.url || prev?.coverImage,
+                            focalX: data.focalX,
+                            focalY: data.focalY,
+                            zoom: data.zoom,
+                            aspectRatio: data.aspectRatio,
+                          }));
+                        },
+                        editingProject.focalX ?? 50,
+                        editingProject.focalY ?? 50,
+                        editingProject.zoom ?? 1
+                      );
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.startsWith("image/")) {
+                        const pasted = items[i].getAsFile();
+                        if (pasted) {
+                          processImageFile(
+                            pasted,
+                            (editingProject.aspectRatio as any) || "4:3",
+                            ["4:3", "1:1", "4:5"],
+                            "Position & Frame Project Image",
+                            (data) => {
+                              setEditingProject((prev) => ({
+                                ...prev,
+                                coverImage: data.url || prev?.coverImage,
+                                focalX: data.focalX,
+                                focalY: data.focalY,
+                                zoom: data.zoom,
+                                aspectRatio: data.aspectRatio,
+                              }));
+                            },
+                            editingProject.focalX ?? 50,
+                            editingProject.focalY ?? 50,
+                            editingProject.zoom ?? 1
+                          );
+                          break;
+                        }
+                      }
+                    }
+                  }}
+                  className="mt-2 p-3 rounded-xl border border-dashed border-[rgba(10,10,10,0.15)] bg-[#FAF9F7]/60 text-center text-[11px] font-mono text-[#6B6B6B] hover:border-[#D40000]/40 transition-colors cursor-pointer"
+                >
+                  Drag & drop file here or paste directly (Ctrl+V / Cmd+V)
+                </div>
+
                 {/* Live Image Preview with Crop & Reposition action */}
                 {editingProject.coverImage && (
                   <div className="mt-2.5 p-2 rounded-2xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.08)] flex flex-col gap-2">
-                    <div className="relative w-full aspect-[4/3] max-h-56 rounded-xl overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#EAE8E4]">
-                      <Image
-                        src={editingProject.coverImage}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                        unoptimized={editingProject.coverImage.startsWith("data:")}
-                      />
+                    <div
+                      className={`relative w-full ${
+                        editingProject.aspectRatio === "1:1"
+                          ? "aspect-[1/1] max-h-56"
+                          : editingProject.aspectRatio === "4:5"
+                          ? "aspect-[4/5] max-h-56"
+                          : "aspect-[4/3] max-h-56"
+                      } rounded-xl overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#EAE8E4]`}
+                    >
+                      <div
+                        className="relative w-full h-full overflow-hidden"
+                        style={{
+                          transform:
+                            (editingProject.zoom ?? 1) > 1
+                              ? `scale(${editingProject.zoom})`
+                              : "none",
+                          transformOrigin: `${editingProject.focalX ?? 50}% ${editingProject.focalY ?? 50}%`,
+                        }}
+                      >
+                        <Image
+                          src={editingProject.coverImage}
+                          alt="Preview"
+                          fill
+                          sizes="400px"
+                          style={{
+                            objectFit: "cover",
+                            objectPosition: `${editingProject.focalX ?? 50}% ${editingProject.focalY ?? 50}%`,
+                          }}
+                          className="object-cover"
+                          unoptimized={editingProject.coverImage.startsWith("data:")}
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between px-1">
                       <span className="text-[11px] font-mono text-[#6B6B6B]">
-                        ✓ Exact 4:3 card preview
+                        ✓ Live card framing ({editingProject.aspectRatio || "4:3"}, focal {editingProject.focalX ?? 50}% {editingProject.focalY ?? 50}%)
                       </span>
                       <button
                         type="button"
@@ -1282,9 +1634,20 @@ export default function AdminDashboardPage() {
                           if (editingProject.coverImage) {
                             setCropperState({
                               imageSrc: editingProject.coverImage,
-                              aspectRatio: 4 / 3,
-                              title: "Recrop Project Image (4:3)",
-                              onComplete: (url) => setEditingProject((prev) => ({ ...prev, coverImage: url })),
+                              initialAspectRatio: (editingProject.aspectRatio as any) || "4:3",
+                              allowedRatios: ["4:3", "1:1", "4:5"],
+                              initialFocalX: editingProject.focalX ?? 50,
+                              initialFocalY: editingProject.focalY ?? 50,
+                              initialZoom: editingProject.zoom ?? 1,
+                              title: "Reposition Project Image",
+                              onComplete: (data) =>
+                                setEditingProject((prev) => ({
+                                  ...prev,
+                                  focalX: data.focalX,
+                                  focalY: data.focalY,
+                                  zoom: data.zoom,
+                                  aspectRatio: data.aspectRatio,
+                                })),
                             });
                           }
                         }}
@@ -1426,48 +1789,192 @@ export default function AdminDashboardPage() {
                     <span>Upload & Crop</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       disabled={uploading}
                       className="hidden"
                       onChange={(e) =>
-                        handleFileSelectForCrop(e, 1, "Crop Specialist Portrait (1:1)", (url) =>
-                          setEditingTeam((prev) => ({ ...prev, avatar: url }))
+                        handleFileSelectForCrop(
+                          e,
+                          "1:1",
+                          ["1:1"],
+                          "Position Specialist Photo (1:1)",
+                          (data) =>
+                            setEditingTeam((prev) => ({
+                              ...prev,
+                              avatar: data.url || prev?.avatar,
+                              focalX: data.focalX,
+                              focalY: data.focalY,
+                              zoom: data.zoom,
+                            })),
+                          editingTeam.focalX ?? 50,
+                          editingTeam.focalY ?? 25,
+                          editingTeam.zoom ?? 1
                         )
                       }
                     />
                   </label>
                 </div>
 
-                {editingTeam.avatar && (
-                  <div className="mt-2.5 flex items-center gap-4">
-                    <div className="relative w-24 h-24 rounded-2xl overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#EAE8E4]">
-                      <Image
-                        src={editingTeam.avatar}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                        unoptimized={editingTeam.avatar.startsWith("data:")}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (editingTeam.avatar) {
-                          setCropperState({
-                            imageSrc: editingTeam.avatar,
-                            aspectRatio: 1,
-                            title: "Recrop Specialist Photo (1:1)",
-                            onComplete: (url) => setEditingTeam((prev) => ({ ...prev, avatar: url })),
-                          });
+                {/* Dropzone for Team */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dropped = e.dataTransfer.files?.[0];
+                    if (dropped) {
+                      processImageFile(
+                        dropped,
+                        "1:1",
+                        ["1:1"],
+                        "Position Specialist Photo (1:1)",
+                        (data) =>
+                          setEditingTeam((prev) => ({
+                            ...prev,
+                            avatar: data.url || prev?.avatar,
+                            focalX: data.focalX,
+                            focalY: data.focalY,
+                            zoom: data.zoom,
+                          })),
+                        editingTeam.focalX ?? 50,
+                        editingTeam.focalY ?? 25,
+                        editingTeam.zoom ?? 1
+                      );
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.startsWith("image/")) {
+                        const pasted = items[i].getAsFile();
+                        if (pasted) {
+                          processImageFile(
+                            pasted,
+                            "1:1",
+                            ["1:1"],
+                            "Position Specialist Photo (1:1)",
+                            (data) =>
+                              setEditingTeam((prev) => ({
+                                ...prev,
+                                avatar: data.url || prev?.avatar,
+                                focalX: data.focalX,
+                                focalY: data.focalY,
+                                zoom: data.zoom,
+                              })),
+                            editingTeam.focalX ?? 50,
+                            editingTeam.focalY ?? 25,
+                            editingTeam.zoom ?? 1
+                          );
+                          break;
                         }
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-white hover:bg-[#D40000] text-[#0A0A0A] hover:text-white border border-[rgba(10,10,10,0.12)] transition-colors cursor-pointer shadow-2xs"
-                    >
-                      <Crop className="w-3.5 h-3.5 text-[#D40000] group-hover:text-white" />
-                      <span>Recrop / Reposition</span>
-                    </button>
+                      }
+                    }
+                  }}
+                  className="mt-2 p-2.5 rounded-xl border border-dashed border-[rgba(10,10,10,0.15)] bg-[#FAF9F7]/60 text-center text-[11px] font-mono text-[#6B6B6B] hover:border-[#D40000]/40 transition-colors cursor-pointer"
+                >
+                  Drag & drop photo here or paste (Ctrl+V)
+                </div>
+
+                {editingTeam.avatar && (
+                  <div className="mt-3 p-3 rounded-2xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.08)] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono font-bold text-[#0A0A0A]">
+                        Live Face Positioning (4:5 Aspect Ratio)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingTeam.avatar) {
+                            setCropperState({
+                              imageSrc: editingTeam.avatar,
+                              initialAspectRatio: "4:5",
+                              allowedRatios: ["4:5", "1:1"],
+                              initialFocalX: editingTeam.focalX ?? 50,
+                              initialFocalY: editingTeam.focalY ?? 22,
+                              initialZoom: editingTeam.zoom ?? 1,
+                              title: "Position Specialist Photo (4:5 & 1:1)",
+                              onComplete: (data) =>
+                                setEditingTeam((prev) => ({
+                                  ...prev,
+                                  focalX: data.focalX,
+                                  focalY: data.focalY,
+                                  zoom: data.zoom,
+                                })),
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-white hover:bg-[#D40000] text-[#0A0A0A] hover:text-white border border-[rgba(10,10,10,0.12)] transition-colors cursor-pointer shadow-2xs"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-[#D40000] group-hover:text-white" />
+                        <span>Focal-Point Tool</span>
+                      </button>
+                    </div>
+
+                    {/* Dual previews: Desktop Card & Mobile Card */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-[10px] font-mono text-[#6B6B6B] mb-1">Desktop Card (4:5)</div>
+                        <div className="relative aspect-[4/5] rounded-xl overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#111]">
+                          <Image
+                            src={editingTeam.avatar}
+                            alt="Desktop preview"
+                            fill
+                            sizes="200px"
+                            style={{
+                              objectFit: "cover",
+                              objectPosition: `${editingTeam.focalX ?? 50}% ${editingTeam.focalY ?? 22}%`,
+                              transform: (editingTeam.zoom ?? 1) > 1 ? `scale(${editingTeam.zoom})` : undefined,
+                            }}
+                            className="object-cover"
+                            unoptimized={editingTeam.avatar.startsWith("data:")}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-mono text-[#6B6B6B] mb-1">Phone Card (390px viewport)</div>
+                        <div className="relative aspect-[4/5] rounded-xl overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#111]">
+                          <Image
+                            src={editingTeam.avatar}
+                            alt="Mobile preview"
+                            fill
+                            sizes="160px"
+                            style={{
+                              objectFit: "cover",
+                              objectPosition: `${editingTeam.focalX ?? 50}% ${editingTeam.focalY ?? 22}%`,
+                              transform: (editingTeam.zoom ?? 1) > 1 ? `scale(${editingTeam.zoom})` : undefined,
+                            }}
+                            className="object-cover"
+                            unoptimized={editingTeam.avatar.startsWith("data:")}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] font-mono text-[#6B6B6B]">
+                      ✓ Default: 50% X / 22% Y keeps face in upper-third safe zone on all viewports.
+                    </div>
                   </div>
                 )}
+              </div>
+
+              {/* Instagram Only */}
+              <div>
+                <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">
+                  Instagram Profile / Handle (Only social link shown)
+                </label>
+                <input
+                  type="text"
+                  value={editingTeam.instagram || ""}
+                  onChange={(e) => setEditingTeam({ ...editingTeam, instagram: e.target.value })}
+                  placeholder="@username or https://www.instagram.com/username"
+                  className="w-full h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
+                />
+                <span className="text-[10px] font-mono text-[#6B6B6B] mt-1 block">
+                  Only Instagram is displayed as a circle button. LinkedIn/X/YouTube have been retired.
+                </span>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
@@ -1560,15 +2067,46 @@ export default function AdminDashboardPage() {
               </div>
 
               <div>
-                <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Endorsement Quote</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[#6B6B6B] uppercase font-bold">Endorsement Quote (Max 280 chars)</label>
+                  <span className={`text-[11px] font-mono font-bold ${
+                    (editingTestimonial.content?.length || 0) > 280 ? "text-red-600" : "text-[#6B6B6B]"
+                  }`}>
+                    {editingTestimonial.content?.length || 0}/280
+                  </span>
+                </div>
                 <textarea
                   required
-                  rows={4}
+                  rows={3}
+                  maxLength={280}
                   value={editingTestimonial.content || ""}
                   onChange={(e) => setEditingTestimonial({ ...editingTestimonial, content: e.target.value })}
                   placeholder="Client feedback on shoots, turnaround, or results..."
                   className="w-full p-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Client Rating</label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setEditingTestimonial({ ...editingTestimonial, rating: star })}
+                      className={`px-3 py-2 rounded-xl text-xs font-mono font-bold border transition-colors cursor-pointer ${
+                        (editingTestimonial.rating || 5) >= star
+                          ? "bg-[#D40000] text-white border-[#D40000]"
+                          : "bg-[#FAF9F7] text-[#6B6B6B] border-[rgba(10,10,10,0.12)] hover:border-[#D40000]"
+                      }`}
+                    >
+                      ★ {star}
+                    </button>
+                  ))}
+                  <span className="text-[11px] font-mono text-[#6B6B6B] ml-2">
+                    {editingTestimonial.rating || 5} / 5 Stars
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -1589,46 +2127,155 @@ export default function AdminDashboardPage() {
                     <span>Upload & Crop</span>
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       disabled={uploading}
                       className="hidden"
                       onChange={(e) =>
-                        handleFileSelectForCrop(e, 1, "Crop Client Avatar (1:1)", (url) =>
-                          setEditingTestimonial((prev) => ({ ...prev, avatar: url }))
+                        handleFileSelectForCrop(
+                          e,
+                          "1:1",
+                          ["1:1"],
+                          "Crop Client Avatar (1:1)",
+                          (data) =>
+                            setEditingTestimonial((prev) => ({
+                              ...prev,
+                              avatar: data.url || prev?.avatar,
+                              focalX: data.focalX,
+                              focalY: data.focalY,
+                              zoom: data.zoom,
+                            })),
+                          editingTestimonial.focalX ?? 50,
+                          editingTestimonial.focalY ?? 50,
+                          editingTestimonial.zoom ?? 1
                         )
                       }
                     />
                   </label>
                 </div>
 
+                {/* Dropzone for Testimonial */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dropped = e.dataTransfer.files?.[0];
+                    if (dropped) {
+                      processImageFile(
+                        dropped,
+                        "1:1",
+                        ["1:1"],
+                        "Crop Client Avatar (1:1)",
+                        (data) =>
+                          setEditingTestimonial((prev) => ({
+                            ...prev,
+                            avatar: data.url || prev?.avatar,
+                            focalX: data.focalX,
+                            focalY: data.focalY,
+                            zoom: data.zoom,
+                          })),
+                        editingTestimonial.focalX ?? 50,
+                        editingTestimonial.focalY ?? 50,
+                        editingTestimonial.zoom ?? 1
+                      );
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (let i = 0; i < items.length; i++) {
+                      if (items[i].type.startsWith("image/")) {
+                        const pasted = items[i].getAsFile();
+                        if (pasted) {
+                          processImageFile(
+                            pasted,
+                            "1:1",
+                            ["1:1"],
+                            "Crop Client Avatar (1:1)",
+                            (data) =>
+                              setEditingTestimonial((prev) => ({
+                                ...prev,
+                                avatar: data.url || prev?.avatar,
+                                focalX: data.focalX,
+                                focalY: data.focalY,
+                                zoom: data.zoom,
+                              })),
+                            editingTestimonial.focalX ?? 50,
+                            editingTestimonial.focalY ?? 50,
+                            editingTestimonial.zoom ?? 1
+                          );
+                          break;
+                        }
+                      }
+                    }
+                  }}
+                  className="mt-2 p-2.5 rounded-xl border border-dashed border-[rgba(10,10,10,0.15)] bg-[#FAF9F7]/60 text-center text-[11px] font-mono text-[#6B6B6B] hover:border-[#D40000]/40 transition-colors cursor-pointer"
+                >
+                  Drag & drop avatar here or paste (Ctrl+V)
+                </div>
+
                 {editingTestimonial.avatar && (
                   <div className="mt-2.5 flex items-center gap-3">
                     <div className="relative w-16 h-16 rounded-full overflow-hidden border border-[rgba(10,10,10,0.08)] bg-[#EAE8E4]">
-                      <Image
-                        src={editingTestimonial.avatar}
-                        alt="Preview"
-                        fill
-                        className="object-cover"
-                        unoptimized={editingTestimonial.avatar.startsWith("data:")}
-                      />
+                      <div
+                        className="relative w-full h-full overflow-hidden rounded-full"
+                        style={{
+                          transform:
+                            (editingTestimonial.zoom ?? 1) > 1
+                              ? `scale(${editingTestimonial.zoom})`
+                              : "none",
+                          transformOrigin: `${editingTestimonial.focalX ?? 50}% ${editingTestimonial.focalY ?? 50}%`,
+                        }}
+                      >
+                        <Image
+                          src={editingTestimonial.avatar}
+                          alt="Preview"
+                          fill
+                          sizes="64px"
+                          style={{
+                            objectFit: "cover",
+                            objectPosition: `${editingTestimonial.focalX ?? 50}% ${editingTestimonial.focalY ?? 50}%`,
+                          }}
+                          className="object-cover"
+                          unoptimized={editingTestimonial.avatar.startsWith("data:")}
+                        />
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (editingTestimonial.avatar) {
-                          setCropperState({
-                            imageSrc: editingTestimonial.avatar,
-                            aspectRatio: 1,
-                            title: "Recrop Client Avatar (1:1)",
-                            onComplete: (url) => setEditingTestimonial((prev) => ({ ...prev, avatar: url })),
-                          });
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-white hover:bg-[#D40000] text-[#0A0A0A] hover:text-white border border-[rgba(10,10,10,0.12)] transition-colors cursor-pointer shadow-2xs"
-                    >
-                      <Crop className="w-3.5 h-3.5 text-[#D40000] group-hover:text-white" />
-                      <span>Recrop</span>
-                    </button>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[11px] font-mono text-[#6B6B6B]">
+                        ✓ 1:1 Avatar ({editingTestimonial.focalX ?? 50}% {editingTestimonial.focalY ?? 50}%)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (editingTestimonial.avatar) {
+                            setCropperState({
+                              imageSrc: editingTestimonial.avatar,
+                              initialAspectRatio: "1:1",
+                              allowedRatios: ["1:1"],
+                              initialFocalX: editingTestimonial.focalX ?? 50,
+                              initialFocalY: editingTestimonial.focalY ?? 50,
+                              initialZoom: editingTestimonial.zoom ?? 1,
+                              title: "Recrop Client Avatar (1:1)",
+                              onComplete: (data) =>
+                                setEditingTestimonial((prev) => ({
+                                  ...prev,
+                                  focalX: data.focalX,
+                                  focalY: data.focalY,
+                                  zoom: data.zoom,
+                                })),
+                            });
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-white hover:bg-[#D40000] text-[#0A0A0A] hover:text-white border border-[rgba(10,10,10,0.12)] transition-colors cursor-pointer shadow-2xs"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-[#D40000] group-hover:text-white" />
+                        <span>Recrop</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1672,14 +2319,15 @@ export default function AdminDashboardPage() {
       {cropperState && (
         <ImageCropperModal
           imageSrc={cropperState.imageSrc}
-          aspectRatio={cropperState.aspectRatio}
+          initialAspectRatio={cropperState.initialAspectRatio || "4:3"}
+          allowedRatios={cropperState.allowedRatios}
+          initialFocalX={cropperState.initialFocalX ?? 50}
+          initialFocalY={cropperState.initialFocalY ?? 50}
+          initialZoom={cropperState.initialZoom ?? 1}
           title={cropperState.title}
-          onCropComplete={async (croppedBlob) => {
-            const url = await uploadBlob(croppedBlob, `crop-${Date.now()}.webp`);
-            if (url) {
-              cropperState.onComplete(url);
-              setCropperState(null);
-            }
+          onCropComplete={(cropResult) => {
+            cropperState.onComplete(cropResult);
+            setCropperState(null);
           }}
           onCancel={() => setCropperState(null)}
         />
