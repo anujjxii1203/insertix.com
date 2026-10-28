@@ -46,11 +46,11 @@ export interface ITeamMember {
 
 export interface ITestimonial {
   id: string;
-  clientName: string;
+  clientName?: string;
   company: string;
-  role: string;
+  role?: string;
   content: string;
-  avatar: string;
+  avatar?: string;
   rating: number;
   order?: number;
   visible?: boolean;
@@ -225,11 +225,11 @@ const TeamMemberSchema = new Schema<ITeamMember>({
 
 const TestimonialSchema = new Schema<ITestimonial>({
   id: { type: String, required: true, unique: true, index: true },
-  clientName: { type: String, required: true },
+  clientName: { type: String, default: "" },
   company: { type: String, required: true },
-  role: { type: String, required: true },
+  role: { type: String, default: "" },
   content: { type: String, required: true },
-  avatar: { type: String, required: true },
+  avatar: { type: String, default: "" },
   rating: { type: Number, default: 5 },
   order: { type: Number, default: 0, index: true },
   visible: { type: Boolean, default: true, index: true },
