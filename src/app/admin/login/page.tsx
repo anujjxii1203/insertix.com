@@ -145,13 +145,6 @@ export default function AdminLoginPage() {
             )}
           </button>
         </form>
-
-        <div className="mt-8 pt-6 border-t border-[rgba(10,10,10,0.08)] text-center">
-          <p className="text-[11px] font-mono text-[#6B6B6B]">
-            Default credentials: <br />
-            <span className="text-[#0A0A0A] font-bold">admin@insertixmedia.com / admin123</span>
-          </p>
-        </div>
       </div>
     </div>
   );
