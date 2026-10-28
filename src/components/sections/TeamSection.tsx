@@ -165,6 +165,7 @@ export default function TeamSection({
               // Normalize role text
               const cleanRole = (member.role || "")
                 .replace(/deginer/gi, "DESIGNER")
+                .replace(/cinemetographer/gi, "CINEMATOGRAPHER")
                 .toUpperCase();
 
               // Normalize Instagram URL using the member's saved instagram or socials

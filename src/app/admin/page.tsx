@@ -54,6 +54,13 @@ export default function AdminDashboardPage() {
   const [leads, setLeads] = useState<IContactMessage[]>([]);
   const [settings, setSettings] = useState<ISiteSettings>(DEFAULT_SITE_SETTINGS);
   const [activityLogs, setActivityLogs] = useState<IActivityLog[]>([]);
+  const [dbStatus, setDbStatus] = useState<{
+    connected: boolean;
+    source: "mongodb" | "local_json";
+    dbName: string | null;
+    cluster: string | null;
+    error: string | null;
+  } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; showLiveLink?: boolean } | null>(null);
@@ -136,14 +143,20 @@ export default function AdminDashboardPage() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [projRes, teamRes, testRes, leadsRes, setRes, logsRes] = await Promise.all([
+      const [projRes, teamRes, testRes, leadsRes, setRes, logsRes, dbRes] = await Promise.all([
         fetch("/api/projects?admin=true"),
         fetch("/api/team?admin=true"),
         fetch("/api/testimonials?admin=true"),
         fetch("/api/admin/contacts"),
         fetch("/api/settings"),
         fetch("/api/admin/activity-logs"),
+        fetch("/api/admin/db-status"),
       ]);
+
+      if (dbRes.ok) {
+        const dbJson = await dbRes.json();
+        setDbStatus(dbJson);
+      }
 
       if (projRes.ok) setProjects(await projRes.json());
       if (teamRes.ok) setTeam(await teamRes.json());
@@ -733,6 +746,27 @@ export default function AdminDashboardPage() {
             <span className="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold tracking-wider uppercase bg-[#FAF9F7] text-[#0A0A0A] border border-[rgba(10,10,10,0.08)]">
               Admin Studio
             </span>
+            {process.env.NODE_ENV !== "production" && dbStatus && (
+              <span
+                className={`px-2.5 py-1 rounded-full text-[11px] font-mono font-bold tracking-wider uppercase border flex items-center gap-1.5 ${
+                  dbStatus.connected && dbStatus.source === "mongodb"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+                title={dbStatus.error || (dbStatus.cluster ? `Cluster: ${dbStatus.cluster}` : undefined)}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    dbStatus.connected && dbStatus.source === "mongodb" ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+                  }`}
+                />
+                <span>
+                  {dbStatus.connected && dbStatus.source === "mongodb"
+                    ? `MongoDB: ${dbStatus.dbName || "connected"}`
+                    : "LOCAL JSON (FALLBACK)"}
+                </span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -758,6 +792,18 @@ export default function AdminDashboardPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-[1280px] w-full mx-auto px-6 md:px-12 py-8 sm:py-10">
+        {/* Database Warning Banner if not connected to MongoDB */}
+        {dbStatus && !dbStatus.connected && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
+            <span className="text-base">⚠️</span>
+            <div className="text-xs font-mono">
+              <strong className="font-bold">Database not connected: using local JSON storage.</strong>
+              <p className="mt-0.5 text-amber-800">
+                {dbStatus.error || "Could not connect to MongoDB Atlas. Check your MONGODB_URI and IP whitelist in Atlas."}
+              </p>
+            </div>
+          </div>
+        )}
         {/* Tab Pills */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
           <button
@@ -838,7 +884,7 @@ export default function AdminDashboardPage() {
                   Portfolio <span className="font-serif italic font-normal text-[#D40000] lowercase first-letter:uppercase">Projects</span>
                 </h2>
                 <p className="text-[#6B6B6B] text-xs sm:text-sm mt-1">
-                  Manage the 10 showcase projects featured in the Recent Work carousel
+                  Manage the {projects.length} showcase projects featured in the Recent Work carousel
                 </p>
               </div>
 
@@ -1130,6 +1176,7 @@ export default function AdminDashboardPage() {
                 onClick={() =>
                   setEditingTestimonial({
                     company: "",
+                    clientName: "",
                     content: "",
                     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=200",
                     rating: 5,
@@ -1178,7 +1225,10 @@ export default function AdminDashboardPage() {
                     <div className="flex items-center gap-3">
                       <AvatarPlaceholder size={44} className="border-[rgba(10,10,10,0.08)]" />
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-bold text-[#0A0A0A] truncate">{t.company || t.clientName || "Company"}</h4>
+                        <h4 className="text-sm font-bold text-[#0A0A0A] truncate">{t.company || "Company"}</h4>
+                        {t.clientName?.trim() ? (
+                          <p className="text-xs font-mono text-[#6B6B6B] truncate">{t.clientName.trim()}</p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -2035,6 +2085,18 @@ export default function AdminDashboardPage() {
                   value={editingTestimonial.company || ""}
                   onChange={(e) => setEditingTestimonial({ ...editingTestimonial, company: e.target.value })}
                   placeholder="e.g. boAt Lifestyle, Zomato Dining, Fabindia"
+                  className="w-full h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#6B6B6B] mb-1.5 uppercase font-bold">Client Name (Optional)</label>
+                <input
+                  type="text"
+                  maxLength={60}
+                  value={editingTestimonial.clientName || ""}
+                  onChange={(e) => setEditingTestimonial({ ...editingTestimonial, clientName: e.target.value })}
+                  placeholder="e.g. Rohan Verma"
                   className="w-full h-13 px-4 rounded-xl bg-[#FAF9F7] border border-[rgba(10,10,10,0.12)] text-[#0A0A0A] text-sm focus:outline-none focus:border-[#D40000]"
                 />
               </div>

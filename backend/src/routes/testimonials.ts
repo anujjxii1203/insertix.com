@@ -8,11 +8,11 @@ import { z } from "zod";
 const router = Router();
 
 const TestimonialSchema = z.object({
-  clientName: z.string().min(2).transform(s => s.trim()),
-  company: z.string().min(1).transform(s => s.trim()),
-  role: z.string().min(1).transform(s => s.trim()),
+  clientName: z.string().max(60, "Client name cannot exceed 60 characters").optional().default("").transform(s => s ? s.trim() : ""),
+  company: z.string().min(1, "Company name is required").transform(s => s.trim()),
+  role: z.string().optional().default("").transform(s => s ? s.trim() : ""),
   content: z.string().min(5).max(280, "Quote cannot exceed 280 characters").transform(s => s.trim()),
-  avatar: z.string().min(1),
+  avatar: z.string().optional().default(""),
   rating: z.number().min(1).max(5).default(5),
   order: z.number().optional().default(0),
   visible: z.boolean().optional().default(true),
@@ -61,7 +61,11 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 // PUT & PATCH /api/testimonials/:id
 const handleUpdateTestimonial = async (req: Request, res: Response) => {
   try {
-    const updated = await updateTestimonial(req.params.id, req.body);
+    const parsed = TestimonialSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid testimonial data", details: parsed.error.issues });
+    }
+    const updated = await updateTestimonial(req.params.id, parsed.data);
     if (!updated) return res.status(404).json({ error: "Testimonial not found" });
 
     notifyUpdate("testimonials");

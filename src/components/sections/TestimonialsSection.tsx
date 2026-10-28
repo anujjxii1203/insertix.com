@@ -118,8 +118,13 @@ export default function TestimonialsSection({
                 <AvatarPlaceholder size={58} />
                 <div className="min-w-0 flex-1">
                   <h4 className="text-sm sm:text-base font-bold text-[var(--text)] group-hover/card:text-[#D40000] transition-colors duration-200 truncate sm:whitespace-normal break-words leading-snug">
-                    {t.company || t.clientName || "Partner"}
+                    {t.company || "Partner"}
                   </h4>
+                  {t.clientName?.trim() ? (
+                    <p className="text-xs font-mono text-[var(--muted)] truncate mt-0.5">
+                      {t.clientName.trim()}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
