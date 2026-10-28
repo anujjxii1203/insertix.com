@@ -478,7 +478,7 @@ export const INITIAL_TEAM: ITeamMember[] = [
   {
     "id": "team-6",
     "name": "Pratyush Rohilla",
-    "role": "Cinemetographer",
+    "role": "Cinematographer",
     "bio": "Captures compelling visuals through creative camera ",
     "avatar": "https://ik.imagekit.io/rqv6tlumh/insertix/team/1793127729534-WhatsApp_Image_2026-10-27_at_8_23_19_PM_V6uMFUW37.webp",
     "socials": {
