@@ -19,9 +19,18 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
       orientation: "vertical",
       gestureOrientation: "vertical",
       smoothWheel: true,
-      wheelMultiplier: 0.9,
-      syncTouch: false, // Disabled on touch
+      wheelMultiplier: 1,
+      touchMultiplier: 1,
+      syncTouch: false,
     });
+
+    // Automatically keep Lenis scroll dimensions synced with dynamic DOM changes
+    const resizeObserver = new ResizeObserver(() => {
+      lenis.resize();
+    });
+    if (document.body) {
+      resizeObserver.observe(document.body);
+    }
 
     let rafId: number;
     function raf(time: number) {
@@ -32,6 +41,7 @@ export default function SmoothScroll({ children }: { children: ReactNode }) {
     rafId = requestAnimationFrame(raf);
 
     return () => {
+      resizeObserver.disconnect();
       cancelAnimationFrame(rafId);
       lenis.destroy();
     };

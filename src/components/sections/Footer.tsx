@@ -43,7 +43,7 @@ export default function Footer({ initialSettings }: { initialSettings?: ISiteSet
   const socialItems = [
     {
       name: "Instagram",
-      href: contact.instagram || "https://www.instagram.com/insertixmedia",
+      href: contact.instagram || "https://www.instagram.com/insertixmedia.in/",
       icon: InstagramIcon,
     },
     {
