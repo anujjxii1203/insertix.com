@@ -10,18 +10,51 @@ import Footer from "@/components/sections/Footer";
 import WhatsAppFloating from "@/components/ui/WhatsAppFloating";
 import BackToTop from "@/components/ui/BackToTop";
 import { getTeam, getSiteSettings, getTestimonials, getProjects } from "@/lib/db";
+import {
+  DEFAULT_SITE_SETTINGS,
+  INITIAL_PROJECTS,
+  INITIAL_TEAM,
+  INITIAL_TESTIMONIALS,
+} from "@/lib/defaultSettings";
 import { serialize } from "@/lib/serialize";
 
 // ISR: Revalidate every 60 seconds (blazing fast CDN + 95% less Vercel server compute)
-export const revalidate = 60;
+// ISR: Revalidate every 300 seconds (5 minutes) for optimal CDN caching and Vercel free-tier savings
+export const revalidate = 300;
 
 export default async function Home() {
-  const [rawTeam, rawSettings, rawTestimonials, rawProjects] = await Promise.all([
-    getTeam(true).catch(() => []),
-    getSiteSettings().catch(() => undefined),
-    getTestimonials(true).catch(() => []),
-    getProjects(true).catch(() => []),
-  ]);
+  let rawTeam = INITIAL_TEAM;
+  let rawSettings = DEFAULT_SITE_SETTINGS;
+  let rawTestimonials = INITIAL_TESTIMONIALS;
+  let rawProjects = INITIAL_PROJECTS;
+
+  try {
+    const [t, s, test, p] = await Promise.all([
+      getTeam(true).catch((err) => {
+        console.warn("[ISR] Failed to load team, using fallback:", err?.message || err);
+        return INITIAL_TEAM;
+      }),
+      getSiteSettings().catch((err) => {
+        console.warn("[ISR] Failed to load settings, using fallback:", err?.message || err);
+        return DEFAULT_SITE_SETTINGS;
+      }),
+      getTestimonials(true).catch((err) => {
+        console.warn("[ISR] Failed to load testimonials, using fallback:", err?.message || err);
+        return INITIAL_TESTIMONIALS;
+      }),
+      getProjects(true).catch((err) => {
+        console.warn("[ISR] Failed to load projects, using fallback:", err?.message || err);
+        return INITIAL_PROJECTS;
+      }),
+    ]);
+
+    if (Array.isArray(t) && t.length > 0) rawTeam = t;
+    if (s) rawSettings = s;
+    if (Array.isArray(test) && test.length > 0) rawTestimonials = test;
+    if (Array.isArray(p) && p.length > 0) rawProjects = p;
+  } catch (error) {
+    console.error("[ISR] Unexpected error during Home page data fetch:", error);
+  }
 
   const initialTeam = serialize(rawTeam);
   const initialSettings = serialize(rawSettings);

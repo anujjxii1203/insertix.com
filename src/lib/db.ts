@@ -141,10 +141,14 @@ export async function connectDB(): Promise<boolean> {
     }
     return false;
   }
-  if (isMongoConnected && mongoose.connection.readyState === 1) return true;
+  if (mongoose.connection.readyState === 1) {
+    isMongoConnected = true;
+    global._mongooseConnected = true;
+    return true;
+  }
 
-  if (mongoConnectingPromise) {
-    return mongoConnectingPromise;
+  if (global._mongooseConnectingPromise) {
+    return global._mongooseConnectingPromise;
   }
 
   mongoConnectingPromise = (async () => {
@@ -566,20 +570,28 @@ export async function updateAdminPassword(email: string, newPasswordHash: string
 
 // ================= SITE SETTINGS =================
 export async function getSiteSettings(): Promise<ISiteSettings> {
-  const hasMongo = await connectDB();
-  if (hasMongo) {
-    const settings = await SiteSettingsModel.findOne({ id: "site-settings-singleton" }).lean();
-    if (!settings) {
-      // In-memory fallback if not yet initialized; do not write on GET in production
-      return DEFAULT_SITE_SETTINGS;
+  try {
+    const hasMongo = await connectDB();
+    if (hasMongo) {
+      const settings = await SiteSettingsModel.findOne({ id: "site-settings-singleton" }).lean();
+      if (!settings) {
+        // In-memory fallback if not yet initialized; do not write on GET in production
+        return DEFAULT_SITE_SETTINGS;
+      }
+      return serialize(settings);
     }
-    return serialize(settings);
+  } catch {
+    // fallback
   }
   if (!allowLocalFs()) {
     return DEFAULT_SITE_SETTINGS;
   }
-  const db = ensureLocalDB();
-  return db.siteSettings || DEFAULT_SITE_SETTINGS;
+  try {
+    const db = ensureLocalDB();
+    return db.siteSettings || DEFAULT_SITE_SETTINGS;
+  } catch {
+    return DEFAULT_SITE_SETTINGS;
+  }
 }
 
 export async function updateSiteSettings(data: Partial<ISiteSettings>): Promise<ISiteSettings> {
