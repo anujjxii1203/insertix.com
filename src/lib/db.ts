@@ -100,10 +100,38 @@ function saveLocalDB(data: LocalDB): void {
 declare global {
   var _mongooseConnected: boolean | undefined;
   var _mongooseConnectingPromise: Promise<boolean> | null | undefined;
+  var _lastDbConnectionError: string | null | undefined;
 }
 
 let isMongoConnected = Boolean(global._mongooseConnected && mongoose.connection.readyState === 1);
 let mongoConnectingPromise: Promise<boolean> | null = global._mongooseConnectingPromise || null;
+
+export function getDbConnectionStatus(): {
+  connected: boolean;
+  source: "mongodb" | "local_json";
+  dbName: string | null;
+  cluster: string | null;
+  error: string | null;
+} {
+  const isConnected = mongoose.connection.readyState === 1;
+  if (isConnected) {
+    const maskedHost = (mongoose.connection.host || "").replace(/shard.*$/, "cluster");
+    return {
+      connected: true,
+      source: "mongodb",
+      dbName: mongoose.connection.name || null,
+      cluster: maskedHost || null,
+      error: null,
+    };
+  }
+  return {
+    connected: false,
+    source: "local_json",
+    dbName: null,
+    cluster: null,
+    error: global._lastDbConnectionError || (process.env.MONGODB_URI ? "MongoDB connection failed" : "MONGODB_URI not set"),
+  };
+}
 
 export async function connectDB(): Promise<boolean> {
   const uri = process.env.MONGODB_URI;
@@ -148,6 +176,7 @@ export async function connectDB(): Promise<boolean> {
     } catch (err) {
       mongoose.set("bufferCommands", false);
       isMongoConnected = false;
+      global._lastDbConnectionError = (err as any)?.message || String(err);
       if (process.env.NODE_ENV === "production") {
         console.error("MongoDB connection failed in production:", (err as any)?.message || err);
         throw new Error(`MongoDB connection failed: ${(err as any)?.message || err}`);
