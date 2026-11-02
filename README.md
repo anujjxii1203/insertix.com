@@ -9,46 +9,7 @@ A high-performance modern web platform for **Insertix Media**, featuring a cinem
 - **Frontend (`/`)**: Next.js 16 with React 19, Tailwind CSS v4, ISR cache tags, and dynamic proxy routing. Designed for deployment on **Vercel**.
 - **Backend (`/backend`)**: Node.js & Express.js REST API with MongoDB Atlas integration, Helmet, Rate Limiting, JWT Cookie/Bearer Auth, SSE Live Updates, and ImageKit image optimization. Designed for deployment on **Render**.
 
----
-
-## 🔐 Environment Variables Specification
-
-> **IMPORTANT**: Never commit `.env` or `.env.*` files to source control. Configure these variables directly in your deployment dashboards (Vercel & Render).
-
-### 1. Backend Service (Render)
-| Variable Name | Description | Example / Note |
-|---|---|---|
-| `NODE_ENV` | Environment mode | `production` |
-| `PORT` | Web service listening port | `10000` (auto-assigned by Render) |
-| `MONGODB_URI` | MongoDB Atlas connection string | `mongodb+srv://<user>:<password>@cluster0.xxx.mongodb.net/insertix?retryWrites=true&w=majority` |
-| `JWT_SECRET` | 32+ character random string for signing admin tokens | Generate with `crypto.randomBytes(48).toString('hex')` |
-| `FRONTEND_URL` | Production URL of Vercel frontend | `https://your-frontend.vercel.app` (or custom domain) |
-| `REVALIDATE_SECRET` | Shared secret to trigger Vercel ISR on mutations | Keep identical between Vercel and Render |
-| `ADMIN_EMAIL` | Initial admin account email | `admin@insertixmedia.com` |
-| `ADMIN_PASSWORD` | One-time password for seed script | Must be at least 8 characters and not weak |
-| `ADMIN_NOTIFICATION_EMAIL` | Recipient email for contact leads | `contact@insertixmedia.com` |
-| `SMTP_HOST` | SMTP server host | `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP port | `587` |
-| `SMTP_USER` | SMTP username | Your email |
-| `SMTP_PASS` | SMTP app password | Your app-specific password |
-| `IMAGEKIT_PUBLIC_KEY` | ImageKit Public Key | For media storage & CDN delivery |
-| `IMAGEKIT_PRIVATE_KEY` | ImageKit Private Key | For server-side uploads |
-| `IMAGEKIT_URL_ENDPOINT` | ImageKit URL Endpoint | E.g. `https://ik.imagekit.io/<your_id>` |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Contact phone number | E.g. `919717150055` |
-
----
-
-### 2. Frontend Web App (Vercel)
-| Variable Name | Description | Example / Note |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Render backend service URL | `https://insertix-backend.onrender.com` |
-| `NEXT_PUBLIC_SITE_URL` | Public site domain | `https://insertixmedia.com` |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER` | Contact phone number | `919717150055` |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | Display contact email | `contact@insertixmedia.com` |
-| `REVALIDATE_SECRET` | Secret for protected `/api/revalidate` route | Must match Render backend `REVALIDATE_SECRET` |
-
----
-
+--
 ## 🛠️ Local Development
 
 ### 1. Run the Backend
